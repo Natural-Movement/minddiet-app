@@ -1,0 +1,19 @@
+{
+  "short_name": "MIND Diet",
+  "name": "MIND Diet Tracker - 마인드 다이어트",
+  "description": "인지 건강을 위한 마인드 다이어트 식단 기록 앱",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#2563EB",
+  "background_color": "#F9FAFB",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

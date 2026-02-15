@@ -1,0 +1,20 @@
+/* Tailwind CSS v4를 불러오는 한 줄 */
+/* 이 한 줄이 있어야 Tailwind의 모든 스타일을 사용할 수 있어요 */
+@import "tailwindcss";
+
+/* ===== 기본 설정 ===== */
+
+/* 모바일에서 터치할 때 파란 하이라이트 없애기 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 전체 페이지 기본 스타일 */
+body {
+  background-color: #F9FAFB;
+  color: #111827;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  font-size: 18px;
+}

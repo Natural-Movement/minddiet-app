@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 모바일에서 확대/축소 방지, 앱처럼 보이게 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <!-- PWA 설정: 브라우저 상단 바 색상 -->
+  <meta name="theme-color" content="#2563EB" />
+
+  <!-- PWA 설정: 아이폰에서 앱처럼 보이게 -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MIND Diet" />
+
+  <!-- 앱 설명 -->
+  <meta name="description" content="인지 건강을 위한 마인드 다이어트 식단 기록 앱" />
+
+  <!-- 앱 아이콘 (나중에 아이콘 파일 추가) -->
+  <link rel="icon" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
+
+  <!-- PWA 매니페스트 파일 연결 -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <title>🧠 MIND Diet Tracker</title>
+</head>
+<body>
+  <div id="root"></div>
+  <!-- Vite가 여기에 React 앱을 넣어줘요 -->
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
