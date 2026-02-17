@@ -1,51 +1,74 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- 배경: 부드러운 그린 그라데이션 -->
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#22c55e"/>
-      <stop offset="100%" style="stop-color:#16a34a"/>
+      <stop offset="100%" style="stop-color:#15803d"/>
     </linearGradient>
     <linearGradient id="bowl" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color:#ffffff"/>
-      <stop offset="100%" style="stop-color:#e5e7eb"/>
+      <stop offset="100%" style="stop-color:#d1d5db"/>
     </linearGradient>
   </defs>
   
   <!-- 둥근 배경 -->
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
   
-  <!-- 샐러드 볼 (흰색 그릇) -->
-  <ellipse cx="256" cy="310" rx="150" ry="60" fill="url(#bowl)" opacity="0.95"/>
-  <path d="M106 290 Q106 370 256 370 Q406 370 406 290" fill="url(#bowl)" opacity="0.9"/>
+  <!-- 그릇 몸체 (크게) -->
+  <path d="M56 280 Q56 420 256 420 Q456 420 456 280" fill="url(#bowl)" opacity="0.95"/>
+  <!-- 그릇 윗테두리 -->
+  <ellipse cx="256" cy="280" rx="200" ry="55" fill="#ffffff"/>
+  <ellipse cx="256" cy="280" rx="185" ry="45" fill="#f0fdf4"/>
   
-  <!-- 잎채소 1 (녹색) -->
-  <ellipse cx="210" cy="260" rx="45" ry="25" fill="#4ade80" transform="rotate(-20 210 260)"/>
-  <line x1="210" y1="240" x2="210" y2="280" stroke="#16a34a" stroke-width="2"/>
+  <!-- 큰 잎채소 왼쪽 -->
+  <ellipse cx="180" cy="230" rx="75" ry="40" fill="#4ade80" transform="rotate(-25 180 230)"/>
+  <line x1="180" y1="200" x2="180" y2="265" stroke="#16a34a" stroke-width="3"/>
+  <line x1="160" y1="220" x2="180" y2="240" stroke="#16a34a" stroke-width="2"/>
+  <line x1="200" y1="215" x2="180" y2="238" stroke="#16a34a" stroke-width="2"/>
   
-  <!-- 잎채소 2 -->
-  <ellipse cx="300" cy="255" rx="40" ry="22" fill="#86efac" transform="rotate(15 300 255)"/>
-  <line x1="300" y1="237" x2="300" y2="273" stroke="#22c55e" stroke-width="2"/>
+  <!-- 큰 잎채소 오른쪽 -->
+  <ellipse cx="340" cy="225" rx="70" ry="38" fill="#86efac" transform="rotate(20 340 225)"/>
+  <line x1="340" y1="195" x2="340" y2="258" stroke="#22c55e" stroke-width="3"/>
+  <line x1="320" y1="215" x2="340" y2="235" stroke="#22c55e" stroke-width="2"/>
+  <line x1="360" y1="210" x2="340" y2="233" stroke="#22c55e" stroke-width="2"/>
   
-  <!-- 토마토 (빨간 원) -->
-  <circle cx="255" cy="270" r="22" fill="#ef4444"/>
-  <circle cx="255" cy="270" r="18" fill="#f87171"/>
-  <path d="M250 252 Q255 248 260 252" fill="#22c55e" stroke="#16a34a" stroke-width="1.5"/>
+  <!-- 잎채소 가운데 위 -->
+  <ellipse cx="256" cy="210" rx="55" ry="35" fill="#4ade80" transform="rotate(5 256 210)"/>
+  <line x1="256" y1="185" x2="256" y2="240" stroke="#16a34a" stroke-width="3"/>
   
-  <!-- 당근 (주황) -->
-  <rect x="170" y="265" width="10" height="35" rx="4" fill="#fb923c" transform="rotate(-30 175 282)"/>
+  <!-- 토마토 (크게) -->
+  <circle cx="220" cy="265" r="32" fill="#ef4444"/>
+  <circle cx="220" cy="265" r="26" fill="#f87171"/>
+  <path d="M210 238 Q220 230 230 238" fill="#22c55e" stroke="#16a34a" stroke-width="2.5"/>
   
-  <!-- 베리 (보라) -->
-  <circle cx="330" cy="275" r="12" fill="#a855f7"/>
-  <circle cx="345" cy="268" r="10" fill="#c084fc"/>
+  <!-- 토마토 슬라이스 -->
+  <circle cx="310" cy="270" r="28" fill="#fca5a5"/>
+  <circle cx="310" cy="270" r="22" fill="#ef4444" opacity="0.6"/>
   
-  <!-- 견과 (갈색) -->
-  <ellipse cx="230" cy="290" rx="10" ry="7" fill="#a16207"/>
-  <ellipse cx="285" cy="288" rx="9" ry="6" fill="#ca8a04"/>
+  <!-- 베리들 (크게) -->
+  <circle cx="150" cy="275" r="18" fill="#7c3aed"/>
+  <circle cx="172" cy="262" r="15" fill="#a855f7"/>
+  <circle cx="158" cy="255" r="12" fill="#c084fc"/>
   
-  <!-- 하트 (기분 좋은 느낌) -->
-  <path d="M240 170 Q240 145 256 155 Q272 145 272 170 Q272 195 256 210 Q240 195 240 170Z" fill="#ffffff" opacity="0.9"/>
+  <!-- 견과류 (크게) -->
+  <ellipse cx="370" cy="268" rx="18" ry="12" fill="#a16207" transform="rotate(15 370 268)"/>
+  <ellipse cx="395" cy="275" rx="15" ry="10" fill="#ca8a04" transform="rotate(-10 395 275)"/>
+  <ellipse cx="380" cy="255" rx="13" ry="9" fill="#d97706"/>
   
-  <!-- 반짝이 -->
-  <text x="150" y="185" font-size="30" opacity="0.8">✨</text>
-  <text x="340" y="175" font-size="25" opacity="0.8">✨</text>
+  <!-- 당근 조각들 -->
+  <rect x="260" y="250" width="14" height="40" rx="6" fill="#fb923c" transform="rotate(-15 267 270)"/>
+  <rect x="280" y="245" width="12" height="35" rx="5" fill="#fdba74" transform="rotate(10 286 262)"/>
+  
+  <!-- 올리브 -->
+  <ellipse cx="200" cy="290" rx="14" ry="10" fill="#365314"/>
+  <ellipse cx="200" cy="290" rx="5" ry="4" fill="#ef4444"/>
+  
+  <!-- 하트 (크게, 중앙 위) -->
+  <path d="M222 120 Q222 80 256 100 Q290 80 290 120 Q290 160 256 185 Q222 160 222 120Z" fill="#ffffff" opacity="0.95"/>
+  
+  <!-- 반짝이 (크게) -->
+  <g fill="#fde047" opacity="0.9">
+    <polygon points="100,130 108,150 128,150 112,162 118,182 100,170 82,182 88,162 72,150 92,150"/>
+    <polygon points="400,110 406,125 422,125 410,134 414,149 400,140 386,149 390,134 378,125 394,125"/>
+    <polygon points="430,200 435,212 448,212 438,219 441,231 430,224 419,231 422,219 412,212 425,212"/>
+  </g>
 </svg>
