@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+/import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { goodFoods, badFoods } from '../data/foodItems.js'
 import { Sun, CloudSun, Moon, Cookie, Check, Save, Loader2 } from 'lucide-react'
@@ -11,7 +11,19 @@ const meals = [
   { key: 'snack',     label: '간식', icon: Cookie },
 ]
 
-// 오늘 날짜의 시작 시간 (한국 기준)
+// 현재 시간에 맞는 끼니 자동 선택
+function getAutoMeal() {
+  const hour = new Date().getHours()
+  const minute = new Date().getMinutes()
+  const time = hour * 100 + minute
+
+  if (time >= 700 && time <= 1100) return 'breakfast'
+  if (time >= 1101 && time <= 1400) return 'lunch'
+  if (time >= 1701 && time <= 2000) return 'dinner'
+  return 'snack'
+}
+
+// 오늘 날짜의 시작~끝 시간
 function getTodayRange() {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
@@ -44,7 +56,7 @@ function FoodCheckCard({ food, checked, onToggle }) {
 }
 
 export default function LogView() {
-  const [mealType, setMealType] = useState('lunch')
+  const [mealType, setMealType] = useState(getAutoMeal())
   const [checkedItems, setCheckedItems] = useState([])
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -68,11 +80,9 @@ export default function LogView() {
         .lte('created_at', end)
 
       if (!error && data && data.length > 0) {
-        // 기존 기록이 있으면 체크 표시
         setCheckedItems(data.map(row => row.food_id))
         setHasExisting(true)
       } else {
-        // 기록 없으면 빈 상태
         setCheckedItems([])
         setHasExisting(false)
       }
