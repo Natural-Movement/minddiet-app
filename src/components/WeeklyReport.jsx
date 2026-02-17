@@ -223,7 +223,7 @@ export default function WeeklyReport() {
               <span className="text-2xl">{food.emoji}</span>
               <span className="text-base font-semibold text-gray-800 flex-1">{food.label}</span>
               <span className="text-base text-gray-500">
-                {count}회{isGood ? ` / ${target}` : ` / ${target}미만`}
+                {count}회{isGood ? ` / ${target}회` : ` / ${target}회 미만`}
               </span>
               <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${
                 score === 1 ? 'bg-green-100 text-green-700'
