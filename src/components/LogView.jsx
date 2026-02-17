@@ -1,4 +1,4 @@
-/import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { goodFoods, badFoods } from '../data/foodItems.js'
 import { Sun, CloudSun, Moon, Cookie, Check, Save, Loader2 } from 'lucide-react'
