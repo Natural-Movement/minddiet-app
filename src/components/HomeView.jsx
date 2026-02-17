@@ -59,7 +59,7 @@ function FoodStatus({ food, count }) {
       <div className="flex items-center justify-between text-sm mb-1.5">
         <span className="text-gray-500">
           {isGood
-            ? `${count}회 / 목표 ${target}회 이상`
+            ? `${count}회 / ${target}회 이상`
             : `${count}회 / ${target}회 미만 권장`
           }
         </span>
