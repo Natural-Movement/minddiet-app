@@ -20,7 +20,7 @@ export default function Toast({ message, type = 'success', onClose }) {
   const isSuccess = type === 'success'
 
   return (
-    <div className="fixed bottom-6 left-4 right-4 z-50 flex justify-center">
+    <div className="fixed bottom-28 left-4 right-4 z-50 flex justify-center">
       <div className={`
         flex items-center gap-3 px-5 py-4 rounded-2xl
         shadow-lg max-w-md w-full text-white
