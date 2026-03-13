@@ -76,20 +76,24 @@ function FoodStatus({ food, count }) {
 }
 
 // ===== 메인 홈 뷰 =====
-export default function HomeView({ onGoToLog }) {
+export default function HomeView({ onGoToLog, userId }) {
   const [counts, setCounts] = useState({})
   const [loading, setLoading] = useState(true)
 
+  // userId가 변경될 때마다 데이터를 다시 불러오도록 수정
   useEffect(() => {
-    fetchWeekData()
-  }, [])
+    if (userId) {
+      fetchWeekData()
+    }
+  }, [userId])
 
   const fetchWeekData = async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('mind_logs')
       .select('food_id')
-      .gte('created_at', getWeekAgo())
+      .eq('user_id', userId)
+      .gte('created_at', getWeekAgo());
 
     if (!error && data) {
       const result = {}
