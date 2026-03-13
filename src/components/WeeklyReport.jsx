@@ -49,7 +49,7 @@ function getBarColor(score) {
   return 'bg-red-400'
 }
 
-export default function WeeklyReport() {
+export default function WeeklyReport({ userId }) {
   const [dailyScores, setDailyScores] = useState([])  // [{date, score, counts}, ...]
   const [loading, setLoading] = useState(true)
 
@@ -67,7 +67,9 @@ export default function WeeklyReport() {
     const { data, error } = await supabase
       .from('mind_logs')
       .select('food_id, created_at')
-      .gte('created_at', weekAgo)
+.eq('user_id', userId)
+.gte('created_at', weekAgo)
+
 
     if (!error && data) {
       // 날짜별 + 음식별로 횟수 세기
