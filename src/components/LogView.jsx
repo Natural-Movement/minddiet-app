@@ -55,7 +55,7 @@ function FoodCheckCard({ food, checked, onToggle }) {
   )
 }
 
-export default function LogView() {
+export default function LogView({ userId }) {
   const [mealType, setMealType] = useState(getAutoMeal())
   const [checkedItems, setCheckedItems] = useState([])
   const [saving, setSaving] = useState(false)
@@ -63,10 +63,12 @@ export default function LogView() {
   const [toast, setToast] = useState(null)
   const [hasExisting, setHasExisting] = useState(false)
 
-  // 끼니가 바뀔 때마다 오늘 해당 끼니 기록을 불러옴
+  // 끼니나 사용자가 바뀔 때마다, 그리고 userId가 확실히 존재할 때 기록을 불러옴
   useEffect(() => {
-    fetchExisting(mealType)
-  }, [mealType])
+    if (userId) {
+      fetchExisting(mealType)
+    }
+  }, [mealType, userId])
 
   const fetchExisting = async (meal) => {
     setLoading(true)
@@ -75,6 +77,7 @@ export default function LogView() {
       const { data, error } = await supabase
         .from('mind_logs')
         .select('food_id')
+        .eq('user_id', userId)
         .eq('meal_type', meal)
         .gte('created_at', start)
         .lte('created_at', end)
@@ -112,6 +115,7 @@ export default function LogView() {
       const { error: deleteError } = await supabase
         .from('mind_logs')
         .delete()
+        .eq('user_id', userId)
         .eq('meal_type', mealType)
         .gte('created_at', start)
         .lte('created_at', end)
@@ -120,9 +124,11 @@ export default function LogView() {
 
       // 2단계: 새로 체크된 항목들 저장
       const rows = checkedItems.map(foodId => ({
+        user_id: userId,
         meal_type: mealType,
         food_id: foodId
       }))
+
       const { error: insertError } = await supabase
         .from('mind_logs')
         .insert(rows)
