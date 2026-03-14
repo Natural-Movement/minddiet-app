@@ -123,7 +123,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
       <WeeklyScoreCard score={weeklyMindScore} />
 
       {/* 날짜별 기록 현황 */}
-      <h2 className="text-xl font-bold text-gray-800 mb-4">📊 일별 기록 현황</h2>
+      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">📊 일별 기록 현황</h2>
 
       <div className="space-y-3">
         {dailyScores.map(({ date, counts, totalLogs }) => {
@@ -139,17 +139,17 @@ export default function WeeklyReport({ userId }: { userId: string }) {
             <div
               key={date.toISOString()}
               className={`
-                p-4 rounded-2xl border-2
+                p-4 rounded-2xl border-2 transition-all
                 ${isToday
-                  ? 'bg-blue-50 border-blue-200'
-                  : 'bg-white border-gray-100'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                  : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700'
                 }
               `}
             >
               {/* 날짜 + 기록 수 */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className={`text-lg font-semibold ${isToday ? 'text-blue-600' : 'text-gray-800'
+                  <span className={`text-lg font-semibold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'
                     }`}>
                     {isToday ? '오늘' : formatDate(date)}
                   </span>
@@ -159,15 +159,15 @@ export default function WeeklyReport({ userId }: { userId: string }) {
                     </span>
                   )}
                 </div>
-                <span className="text-lg font-bold text-gray-600">
+                <span className="text-lg font-bold text-gray-600 dark:text-gray-400">
                   {totalLogs}건
                 </span>
               </div>
 
               {/* 기록 바 */}
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+              <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden mb-2">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${totalLogs === 0 ? 'bg-gray-200' : 'bg-blue-500'
+                  className={`h-full rounded-full transition-all duration-500 ${totalLogs === 0 ? 'bg-gray-200 dark:bg-gray-600' : 'bg-blue-500 dark:bg-blue-600'
                     }`}
                   style={{ width: `${barWidth}%` }}
                 />
@@ -177,7 +177,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
               {eatenEmojis.length > 0 ? (
                 <p className="text-xl">{eatenEmojis.join(' ')}</p>
               ) : (
-                <p className="text-sm text-gray-400">기록 없음</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">기록 없음</p>
               )}
             </div>
           )
@@ -185,7 +185,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
       </div>
 
       {/* 식품별 주간 상세 */}
-      <h2 className="text-xl font-bold text-gray-800 mt-8 mb-4">📋 식품별 주간 요약</h2>
+      <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-8 mb-4">📋 식품별 주간 요약</h2>
 
       <div className="space-y-2">
         {allFoods.map(food => {
@@ -195,15 +195,15 @@ export default function WeeklyReport({ userId }: { userId: string }) {
           const target = isGood ? food.weeklyTarget : food.weeklyLimit
 
           return (
-            <div key={food.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+            <div key={food.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
               <span className="text-2xl">{food.emoji}</span>
-              <span className="text-base font-semibold text-gray-800 flex-1">{food.label}</span>
-              <span className="text-base text-gray-500">
+              <span className="text-base font-semibold text-gray-800 dark:text-gray-200 flex-1">{food.label}</span>
+              <span className="text-base text-gray-500 dark:text-gray-400">
                 {count}회{isGood ? ` / ${target}회` : ` / ${target}회 미만`}
               </span>
-              <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${score === 1 ? 'bg-green-100 text-green-700'
-                : score === 0.5 ? 'bg-amber-100 text-amber-700'
-                  : 'bg-red-100 text-red-700'
+              <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${score === 1 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                : score === 0.5 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                 }`}>
                 {score}점
               </span>

@@ -1,6 +1,7 @@
 /* Tailwind CSS v4를 불러오는 한 줄 */
 /* 이 한 줄이 있어야 Tailwind의 모든 스타일을 사용할 수 있어요 */
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ===== 기본 설정 ===== */
 
@@ -15,8 +16,5 @@
     @apply bg-gray-50 text-gray-900 border-gray-200;
   }
 
-  .dark body {
-    /* Tailwind v4에서는 media 대신 class 전략 사용 시 어떻게 되는지에 맞춤. 기본적으로는 dark: 클래스 사용, 혹은 body 최상단에서 변경 */
-    @apply bg-gray-900 text-gray-100 border-gray-700;
-  }
+  /* .dark body는 더이상 필요하지 않으므로 삭제합니다. (tailwind 클래스에 의해 자체 처리) */
 }
