@@ -3,9 +3,10 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { goodFoods, badFoods, allFoods, calcItemScore } from '../data/foodItems.js'
+import { goodFoods, badFoods, allFoods, calcItemScore, FoodItem } from '../data/foodItems'
 import { Loader2, ArrowRight } from 'lucide-react'
 import ReminderSetting from './ReminderSetting'
+import WeeklyScoreCard from './WeeklyScoreCard'
 
 // 7일 전 날짜
 function getWeekAgo() {
@@ -16,7 +17,12 @@ function getWeekAgo() {
 }
 
 // 음식별 현황 카드 하나
-function FoodStatus({ food, count }) {
+interface FoodStatusProps {
+  food: FoodItem;
+  count: number;
+}
+
+function FoodStatus({ food, count }: FoodStatusProps) {
   const isGood = food.weeklyTarget !== undefined
   const target = isGood ? food.weeklyTarget : food.weeklyLimit
   const score = calcItemScore(food, count)
@@ -28,28 +34,28 @@ function FoodStatus({ food, count }) {
   }
 
   const getScoreBadge = () => {
-    if (score === 1) return { text: '1점', bg: 'bg-green-100 text-green-700' }
-    if (score === 0.5) return { text: '0.5', bg: 'bg-amber-100 text-amber-700' }
-    return { text: '0점', bg: 'bg-red-100 text-red-700' }
+    if (score === 1) return { text: '1점', bg: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' }
+    if (score === 0.5) return { text: '0.5', bg: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' }
+    return { text: '0점', bg: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
   }
 
   const badge = getScoreBadge()
 
   const barPercent = isGood
-    ? Math.min((count / target) * 100, 100)
+    ? Math.min((count / (target || 1)) * 100, 100)
     : target === 0
       ? (count === 0 ? 0 : 100)
-      : Math.min((count / target) * 100, 100)
+      : Math.min((count / (target || 1)) * 100, 100)
 
   return (
     <div className={`
       p-4 rounded-2xl border-2 transition-all
-      ${isGood ? 'bg-white border-gray-100' : 'bg-red-50/50 border-red-100'}
+      ${isGood ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'}
     `}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span className="text-2xl">{food.emoji}</span>
-          <span className="text-lg font-semibold text-gray-800">{food.label}</span>
+          <span className="text-lg font-semibold text-gray-800 dark:text-gray-200">{food.label}</span>
         </div>
         <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${badge.bg}`}>
           {badge.text}
@@ -57,7 +63,7 @@ function FoodStatus({ food, count }) {
       </div>
 
       <div className="flex items-center justify-between text-sm mb-1.5">
-        <span className="text-gray-500">
+        <span className="text-gray-500 dark:text-gray-400">
           {isGood
             ? `${count}회 / ${target}회 이상`
             : `${count}회 / ${target}회 미만 권장`
@@ -65,7 +71,7 @@ function FoodStatus({ food, count }) {
         </span>
       </div>
 
-      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${getBarColor()}`}
           style={{ width: `${barPercent}%` }}
@@ -76,8 +82,13 @@ function FoodStatus({ food, count }) {
 }
 
 // ===== 메인 홈 뷰 =====
-export default function HomeView({ onGoToLog, userId }) {
-  const [counts, setCounts] = useState({})
+interface HomeViewProps {
+  userId: string;
+  onGoToLog: () => void;
+}
+
+export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
+  const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
   // userId가 변경될 때마다 데이터를 다시 불러오도록 수정
@@ -89,6 +100,8 @@ export default function HomeView({ onGoToLog, userId }) {
 
   const fetchWeekData = async () => {
     setLoading(true)
+    if (!supabase) return; // type guard
+
     const { data, error } = await supabase
       .from('mind_logs')
       .select('food_id')
@@ -96,7 +109,7 @@ export default function HomeView({ onGoToLog, userId }) {
       .gte('created_at', getWeekAgo());
 
     if (!error && data) {
-      const result = {}
+      const result: Record<string, number> = {}
       allFoods.forEach(f => { result[f.id] = 0 })
       data.forEach(row => {
         if (result[row.food_id] !== undefined) {
@@ -126,29 +139,10 @@ export default function HomeView({ onGoToLog, userId }) {
       <ReminderSetting />
 
       {/* 주간 MIND 총점 카드 */}
-      <div className={`
-        p-5 rounded-2xl border-2 mb-6 text-center
-        ${weeklyScore >= 10
-          ? 'bg-green-50 border-green-200'
-          : weeklyScore >= 5
-            ? 'bg-amber-50 border-amber-200'
-            : 'bg-red-50 border-red-200'
-        }
-      `}>
-        <p className="text-base font-semibold text-gray-500 mb-1">이번 주 MIND 점수</p>
-        <p className={`text-5xl font-extrabold ${
-          weeklyScore >= 10 ? 'text-green-600'
-            : weeklyScore >= 5 ? 'text-amber-500'
-              : 'text-red-500'
-        }`}>
-          {weeklyScore}
-          <span className="text-2xl text-gray-400"> / 15</span>
-        </p>
-        <p className="text-sm text-gray-500 mt-2">최근 7일 기준 (롤링)</p>
-      </div>
+      <WeeklyScoreCard score={weeklyScore} />
 
       {/* 권장 식품 현황 */}
-      <h2 className="text-xl font-bold text-green-800 mb-3">✅ 권장 식품 현황</h2>
+      <h2 className="text-xl font-bold text-green-800 dark:text-green-500 mb-3">✅ 권장 식품 현황</h2>
       <div className="space-y-2 mb-6">
         {goodFoods.map(food => (
           <FoodStatus key={food.id} food={food} count={counts[food.id] || 0} />
@@ -156,7 +150,7 @@ export default function HomeView({ onGoToLog, userId }) {
       </div>
 
       {/* 제한 식품 현황 */}
-      <h2 className="text-xl font-bold text-red-800 mb-3">⛔ 제한 식품 현황</h2>
+      <h2 className="text-xl font-bold text-red-800 dark:text-red-500 mb-3">⛔ 제한 식품 현황</h2>
       <div className="space-y-2 mb-6">
         {badFoods.map(food => (
           <FoodStatus key={food.id} food={food} count={counts[food.id] || 0} />

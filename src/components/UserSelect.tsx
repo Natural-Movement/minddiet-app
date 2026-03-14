@@ -2,14 +2,18 @@ import { User, Users } from 'lucide-react'
 
 const users = [
   { id: 'only_me', label: 'Only Me', icon: User, color: 'bg-blue-600 hover:bg-blue-700' },
-  { id: 'sky',     label: 'Sky',     icon: Users, color: 'bg-purple-600 hover:bg-purple-700' },
+  { id: 'sky', label: 'Sky', icon: Users, color: 'bg-purple-600 hover:bg-purple-700' },
 ]
 
-export default function UserSelect({ onSelect }) {
+interface UserSelectProps {
+  onSelect: (id: string) => void;
+}
+
+export default function UserSelect({ onSelect }: UserSelectProps) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6">
-      <h1 className="text-4xl font-bold text-gray-800 mb-2">🧠 MIND Diet</h1>
-      <p className="text-lg text-gray-500 mb-10">사용자를 선택하세요</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center px-6">
+      <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">🧠 MIND Diet</h1>
+      <p className="text-lg text-gray-500 dark:text-gray-400 mb-10">사용자를 선택하세요</p>
       <div className="w-full max-w-sm space-y-4">
         {users.map(({ id, label, icon: Icon, color }) => (
           <button key={id} onClick={() => onSelect(id)}
@@ -19,7 +23,7 @@ export default function UserSelect({ onSelect }) {
           </button>
         ))}
       </div>
-      <p className="mt-8 text-sm text-gray-400">마인드 다이어트 식단 기록 앱</p>
+      <p className="mt-8 text-sm text-gray-400 dark:text-gray-500">마인드 다이어트 식단 기록 앱</p>
     </div>
   )
 }

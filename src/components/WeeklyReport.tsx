@@ -2,9 +2,10 @@
 // 지난 7일간 날짜별로 MIND 점수가 어떻게 변했는지 보여줘요
 
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase.js'
-import { allFoods, calcItemScore } from '../data/foodItems.js'
+import { supabase } from '../lib/supabase'
+import { allFoods, calcItemScore } from '../data/foodItems'
 import { Loader2 } from 'lucide-react'
+import WeeklyScoreCard from './WeeklyScoreCard'
 
 // 최근 7일 날짜 배열 만들기 (오늘 포함)
 function getLast7Days() {
@@ -19,7 +20,7 @@ function getLast7Days() {
 }
 
 // 날짜를 한국어로 표시
-function formatDate(date) {
+function formatDate(date: Date) {
   return date.toLocaleDateString('ko-KR', {
     month: 'short',
     day: 'numeric',
@@ -28,7 +29,7 @@ function formatDate(date) {
 }
 
 // 같은 날인지 비교
-function isSameDay(date1, date2) {
+function isSameDay(date1: Date, date2: Date) {
   return (
     date1.getFullYear() === date2.getFullYear() &&
     date1.getMonth() === date2.getMonth() &&
@@ -36,26 +37,17 @@ function isSameDay(date1, date2) {
   )
 }
 
-// 점수에 따른 색상
-function getScoreColor(score) {
-  if (score >= 10) return 'text-green-600'
-  if (score >= 5) return 'text-amber-500'
-  return 'text-red-500'
-}
 
-function getBarColor(score) {
-  if (score >= 10) return 'bg-green-500'
-  if (score >= 5) return 'bg-amber-400'
-  return 'bg-red-400'
-}
 
-export default function WeeklyReport({ userId }) {
-  const [dailyScores, setDailyScores] = useState([])  // [{date, score, counts}, ...]
+export default function WeeklyReport({ userId }: { userId: string }) {
+  const [dailyScores, setDailyScores] = useState<any[]>([])  // [{date, score, counts}, ...]
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchWeekData()
-  }, [])
+    if (userId) {
+      fetchWeekData()
+    }
+  }, [userId])
 
   const fetchWeekData = async () => {
     setLoading(true)
@@ -64,25 +56,27 @@ export default function WeeklyReport({ userId }) {
     const days = getLast7Days()
     const weekAgo = days[0].toISOString()
 
+    if (!supabase) return; // Type guard
+
     const { data, error } = await supabase
       .from('mind_logs')
       .select('food_id, created_at')
-.eq('user_id', userId)
-.gte('created_at', weekAgo)
+      .eq('user_id', userId)
+      .gte('created_at', weekAgo)
 
 
     if (!error && data) {
       // 날짜별 + 음식별로 횟수 세기
       const result = days.map(day => {
         // 이 날짜에 해당하는 기록만 필터
-        const dayLogs = data.filter(row =>
+        const dayLogs = data.filter((row: any) =>
           isSameDay(new Date(row.created_at), day)
         )
 
         // 음식별 횟수 세기
-        const counts = {}
+        const counts: Record<string, number> = {}
         allFoods.forEach(f => { counts[f.id] = 0 })
-        dayLogs.forEach(row => {
+        dayLogs.forEach((row: any) => {
           if (counts[row.food_id] !== undefined) {
             counts[row.food_id]++
           }
@@ -100,7 +94,7 @@ export default function WeeklyReport({ userId }) {
   }
 
   // 7일 누적 횟수로 주간 MIND 점수 계산
-  const weeklyTotalCounts = {}
+  const weeklyTotalCounts: Record<string, number> = {}
   allFoods.forEach(f => { weeklyTotalCounts[f.id] = 0 })
   dailyScores.forEach(day => {
     allFoods.forEach(f => {
@@ -126,25 +120,7 @@ export default function WeeklyReport({ userId }) {
   return (
     <section>
       {/* 주간 총점 */}
-      <div className={`
-        p-5 rounded-2xl border-2 mb-6 text-center
-        ${weeklyMindScore >= 10
-          ? 'bg-green-50 border-green-200'
-          : weeklyMindScore >= 5
-            ? 'bg-amber-50 border-amber-200'
-            : 'bg-red-50 border-red-200'
-        }
-      `}>
-        <p className="text-base font-semibold text-gray-500 mb-1">이번 주 MIND 점수</p>
-        <p className={`text-5xl font-extrabold ${
-          weeklyMindScore >= 10 ? 'text-green-600'
-            : weeklyMindScore >= 5 ? 'text-amber-500'
-              : 'text-red-500'
-        }`}>
-          {weeklyMindScore}
-          <span className="text-2xl text-gray-400"> / 15</span>
-        </p>
-      </div>
+      <WeeklyScoreCard score={weeklyMindScore} />
 
       {/* 날짜별 기록 현황 */}
       <h2 className="text-xl font-bold text-gray-800 mb-4">📊 일별 기록 현황</h2>
@@ -173,9 +149,8 @@ export default function WeeklyReport({ userId }) {
               {/* 날짜 + 기록 수 */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className={`text-lg font-semibold ${
-                    isToday ? 'text-blue-600' : 'text-gray-800'
-                  }`}>
+                  <span className={`text-lg font-semibold ${isToday ? 'text-blue-600' : 'text-gray-800'
+                    }`}>
                     {isToday ? '오늘' : formatDate(date)}
                   </span>
                   {isToday && (
@@ -192,9 +167,8 @@ export default function WeeklyReport({ userId }) {
               {/* 기록 바 */}
               <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    totalLogs === 0 ? 'bg-gray-200' : 'bg-blue-500'
-                  }`}
+                  className={`h-full rounded-full transition-all duration-500 ${totalLogs === 0 ? 'bg-gray-200' : 'bg-blue-500'
+                    }`}
                   style={{ width: `${barWidth}%` }}
                 />
               </div>
@@ -227,11 +201,10 @@ export default function WeeklyReport({ userId }) {
               <span className="text-base text-gray-500">
                 {count}회{isGood ? ` / ${target}회` : ` / ${target}회 미만`}
               </span>
-              <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${
-                score === 1 ? 'bg-green-100 text-green-700'
-                  : score === 0.5 ? 'bg-amber-100 text-amber-700'
-                    : 'bg-red-100 text-red-700'
-              }`}>
+              <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${score === 1 ? 'bg-green-100 text-green-700'
+                : score === 0.5 ? 'bg-amber-100 text-amber-700'
+                  : 'bg-red-100 text-red-700'
+                }`}>
                 {score}점
               </span>
             </div>

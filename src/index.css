@@ -10,11 +10,13 @@
 }
 
 /* 전체 페이지 기본 스타일 */
-body {
-  background-color: #F9FAFB;
-  color: #111827;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Noto Sans KR', sans-serif;
-  min-height: 100vh;
-  font-size: 18px;
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 border-gray-200;
+  }
+
+  .dark body {
+    /* Tailwind v4에서는 media 대신 class 전략 사용 시 어떻게 되는지에 맞춤. 기본적으로는 dark: 클래스 사용, 혹은 body 최상단에서 변경 */
+    @apply bg-gray-900 text-gray-100 border-gray-700;
+  }
 }

@@ -1,8 +1,24 @@
 // 마인드 다이어트 음식 목록 (업그레이드 버전)
 // 이제 각 음식마다 주간 목표 횟수와 0/0.5/1점 기준이 포함돼요
 
+export interface ScoringCriteria {
+  zero: number;
+  half: [number, number];
+  full: number;
+}
+
+export interface FoodItem {
+  id: string;
+  label: string;
+  emoji: string;
+  example: string;
+  weeklyTarget?: number;
+  weeklyLimit?: number;
+  scoring: ScoringCriteria;
+}
+
 // ===== 권장 식품 10종 =====
-export const goodFoods = [
+export const goodFoods: FoodItem[] = [
   {
     id: 'green_veg', label: '녹색 잎채소', emoji: '🥬',
     example: '시금치, 케일, 상추',
@@ -74,7 +90,7 @@ export const goodFoods = [
 
 // ===== 제한 식품 5종 =====
 // 제한 식품은 "미만"이 기준! (이하가 아님)
-export const badFoods = [
+export const badFoods: FoodItem[] = [
   {
     id: 'red_meat', label: '붉은 육류', emoji: '🥩',
     example: '소고기, 돼지고기, 양고기',
@@ -113,10 +129,10 @@ export const badFoods = [
   },
 ]
 
-export const allFoods = [...goodFoods, ...badFoods]
+export const allFoods: FoodItem[] = [...goodFoods, ...badFoods]
 
 // 주간 횟수로 MIND 점수(0, 0.5, 1) 계산하는 함수
-export function calcItemScore(food, count) {
+export function calcItemScore(food: FoodItem, count: number): number {
   const s = food.scoring
 
   // 권장 식품: 많이 먹을수록 좋음

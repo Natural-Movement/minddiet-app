@@ -5,10 +5,16 @@
 import { CheckCircle2, AlertCircle, X } from 'lucide-react'
 import { useEffect } from 'react'
 
+export interface ToastProps {
+  message: string;
+  type?: 'success' | 'error';
+  onClose: () => void;
+}
+
 // message = 알림 메시지 ("저장 완료!" 같은)
 // type = 'success'(성공) 또는 'error'(에러)
 // onClose = 알림 닫기 함수
-export default function Toast({ message, type = 'success', onClose }) {
+export default function Toast({ message, type = 'success', onClose }: ToastProps) {
 
   // 3초 후에 자동으로 사라지게
   useEffect(() => {
@@ -24,7 +30,7 @@ export default function Toast({ message, type = 'success', onClose }) {
       <div className={`
         flex items-center gap-3 px-5 py-4 rounded-2xl
         shadow-lg max-w-md w-full text-white
-        ${isSuccess ? 'bg-green-700' : 'bg-red-700'}
+        ${isSuccess ? 'bg-green-700 dark:bg-green-600' : 'bg-red-700 dark:bg-red-600'}
       `}>
         {/* 성공이면 체크 아이콘, 실패면 경고 아이콘 */}
         {isSuccess
