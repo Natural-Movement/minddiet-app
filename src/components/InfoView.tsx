@@ -56,7 +56,7 @@ export default function InfoView() {
 
       {/* ===== 권장 식품 10종 ===== */}
       <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-2xl p-5">
-        <h3 className="text-xl font-bold text-green-800 dark:text-green-500 mb-1">✅ 뇌를 지키는 10가지 식품</h3>
+        <h3 className="text-xl font-bold text-green-800 dark:text-green-500 mb-1">✅ 뇌를 지키는 9가지 식품 + 건강 음료</h3>
         <p className="text-sm text-green-700 dark:text-green-600 mb-4">많이 먹을수록 좋아요</p>
 
         <div className="space-y-3">
@@ -123,11 +123,33 @@ export default function InfoView() {
               <p className="text-sm text-green-700 dark:text-green-500">단일불포화지방산이 뇌 혈관을 건강하게 유지해요</p>
             </div>
           </div>
-          <div className="flex items-start gap-3">
-            <span className="text-2xl">🍷</span>
-            <div>
-              <p className="text-base font-bold text-green-900 dark:text-green-400">와인 — 하루 1잔</p>
-              <p className="text-sm text-green-700 dark:text-green-500">레드와인의 레스베라트롤이 뇌 보호 효과. 단, 1잔 초과는 역효과!</p>
+
+          {/* 건강 음료 (통합 1점) */}
+          <div className="mt-2 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-700">
+            <p className="text-base font-bold text-teal-900 dark:text-teal-400 mb-2">☕ 건강 음료 — 매일 요구량 충족 (통합 1점)</p>
+            <p className="text-sm text-teal-700 dark:text-teal-500 mb-3">아래 중 아무 음료든 하루 요구량을 충족하면 1일 달성! 7일 달성 시 1점</p>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="text-lg">☕</span>
+                <div>
+                  <p className="text-sm font-semibold text-teal-800 dark:text-teal-300">종이 필터 커피 — 하루 2잔</p>
+                  <p className="text-xs text-teal-600 dark:text-teal-500">클로로겐산이 뇌의 항산화 방어력을 높여요</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-lg">🍵</span>
+                <div>
+                  <p className="text-sm font-semibold text-teal-800 dark:text-teal-300">녹차/말차 — 하루 3잔</p>
+                  <p className="text-xs text-teal-600 dark:text-teal-500">카테킨과 L-테아닌이 집중력과 기억력을 향상시켜요</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-lg">🍇</span>
+                <div>
+                  <p className="text-sm font-semibold text-teal-800 dark:text-teal-300">무가당 100% 포도즙 — 하루 1잔</p>
+                  <p className="text-xs text-teal-600 dark:text-teal-500">레스베라트롤과 폴리페놀이 뇌 보호 효과를 줘요</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

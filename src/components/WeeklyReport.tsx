@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { allFoods, calcItemScore } from '../data/foodItems'
+import { allFoods, beverageFoods, calcItemScore, calcBeverageScore } from '../data/foodItems'
 import { Loader2 } from 'lucide-react'
 import WeeklyScoreCard from './WeeklyScoreCard'
 
@@ -73,9 +73,10 @@ export default function WeeklyReport({ userId }: { userId: string }) {
           isSameDay(new Date(row.created_at), day)
         )
 
-        // 음식별 횟수 세기
+        // 음식별 횟수 세기 (음료 포함)
         const counts: Record<string, number> = {}
         allFoods.forEach(f => { counts[f.id] = 0 })
+        beverageFoods.forEach(f => { counts[f.id] = 0 })
         dayLogs.forEach((row: any) => {
           if (counts[row.food_id] !== undefined) {
             counts[row.food_id]++
@@ -96,15 +97,27 @@ export default function WeeklyReport({ userId }: { userId: string }) {
   // 7일 누적 횟수로 주간 MIND 점수 계산
   const weeklyTotalCounts: Record<string, number> = {}
   allFoods.forEach(f => { weeklyTotalCounts[f.id] = 0 })
+  beverageFoods.forEach(f => { weeklyTotalCounts[f.id] = 0 })
   dailyScores.forEach(day => {
     allFoods.forEach(f => {
       weeklyTotalCounts[f.id] += day.counts[f.id] || 0
     })
+    beverageFoods.forEach(f => {
+      weeklyTotalCounts[f.id] += day.counts[f.id] || 0
+    })
   })
+
+  // 음료 점수: 날짜별 카운트로 통합 계산 (최대 1점)
+  const beverageDailyCounts = dailyScores.map(day => {
+    const bc: Record<string, number> = {}
+    beverageFoods.forEach(f => { bc[f.id] = day.counts[f.id] || 0 })
+    return bc
+  })
+  const beverageScore = calcBeverageScore(beverageDailyCounts)
 
   const weeklyMindScore = allFoods.reduce((total, food) => {
     return total + calcItemScore(food, weeklyTotalCounts[food.id] || 0)
-  }, 0)
+  }, 0) + beverageScore
 
   // 일별 기록 건수 중 최대값 (바 그래프 스케일링용)
   const maxDailyLogs = Math.max(...dailyScores.map(d => d.totalLogs), 1)
@@ -131,7 +144,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
           const barWidth = (totalLogs / maxDailyLogs) * 100
 
           // 이 날 먹은 음식 이모지 목록
-          const eatenEmojis = allFoods
+          const eatenEmojis = [...allFoods, ...beverageFoods]
             .filter(f => counts[f.id] > 0)
             .map(f => f.emoji)
 
@@ -210,6 +223,25 @@ export default function WeeklyReport({ userId }: { userId: string }) {
             </div>
           )
         })}
+
+        {/* 건강 음료 통합 점수 */}
+        <div className="flex items-center gap-3 p-3 bg-teal-50 dark:bg-teal-900/20 rounded-xl border border-teal-200 dark:border-teal-800">
+          <span className="text-2xl">☕</span>
+          <div className="flex-1">
+            <span className="text-base font-semibold text-teal-800 dark:text-teal-200">건강 음료 (통합)</span>
+            <div className="text-xs text-teal-600 dark:text-teal-400 mt-0.5">
+              {beverageFoods.map(b => (
+                <span key={b.id} className="mr-2">{b.emoji} {weeklyTotalCounts[b.id] || 0}회</span>
+              ))}
+            </div>
+          </div>
+          <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${beverageScore === 1 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+            : beverageScore === 0.5 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            }`}>
+            {beverageScore}점
+          </span>
+        </div>
       </div>
     </section>
   )

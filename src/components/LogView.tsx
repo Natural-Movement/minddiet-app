@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { goodFoods, badFoods, FoodItem } from '../data/foodItems'
+import { goodFoods, badFoods, beverageFoods, FoodItem, BeverageItem } from '../data/foodItems'
 import { Sun, CloudSun, Moon, Cookie, Check, Save, Loader2 } from 'lucide-react'
 import Toast from './Toast'
 
@@ -32,23 +32,29 @@ function getDayRange(dateString: string) {
   return { start: start.toISOString(), end: end.toISOString() }
 }
 
-function FoodCheckCard({ food, checked, onToggle }: { food: FoodItem, checked: boolean, onToggle: (id: string) => void }) {
-  const isGood = food.weeklyTarget !== undefined
+function FoodCheckCard({ food, checked, onToggle, colorType }: { food: FoodItem | BeverageItem, checked: boolean, onToggle: (id: string) => void, colorType?: 'good' | 'bad' | 'beverage' }) {
+  const type = colorType || ((food as FoodItem).weeklyTarget !== undefined ? 'good' : 'bad')
+  const colorMap = {
+    good: { bg: 'bg-green-50 dark:bg-green-900/30 border-green-500', text: 'text-green-800 dark:text-green-400', sub: 'text-green-600 dark:text-green-500', check: 'bg-green-500 border-green-500' },
+    bad: { bg: 'bg-red-50 dark:bg-red-900/30 border-red-500', text: 'text-red-800 dark:text-red-400', sub: 'text-red-600 dark:text-red-500', check: 'bg-red-500 border-red-500' },
+    beverage: { bg: 'bg-teal-50 dark:bg-teal-900/30 border-teal-500', text: 'text-teal-800 dark:text-teal-400', sub: 'text-teal-600 dark:text-teal-500', check: 'bg-teal-500 border-teal-500' },
+  }
+  const c = colorMap[type]
   return (
     <button onClick={() => onToggle(food.id)}
       className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-200
         ${checked
-          ? (isGood ? 'bg-green-50 dark:bg-green-900/30 border-green-500 shadow-md' : 'bg-red-50 dark:bg-red-900/30 border-red-500 shadow-md')
+          ? `${c.bg} shadow-md`
           : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 active:scale-[0.98]'}
       `}>
       <span className="text-3xl w-10 text-center">{food.emoji}</span>
       <div className="flex-1">
-        <p className={`text-lg font-semibold ${checked ? (isGood ? 'text-green-800 dark:text-green-400' : 'text-red-800 dark:text-red-400') : 'text-gray-800 dark:text-gray-200'}`}>{food.label}</p>
-        <p className={`text-sm mt-0.5 ${checked ? (isGood ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500') : 'text-gray-400 dark:text-gray-500'}`}>{food.example}</p>
+        <p className={`text-lg font-semibold ${checked ? c.text : 'text-gray-800 dark:text-gray-200'}`}>{food.label}</p>
+        <p className={`text-sm mt-0.5 ${checked ? c.sub : 'text-gray-400 dark:text-gray-500'}`}>{food.example}</p>
       </div>
       <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-200
         ${checked
-          ? (isGood ? 'bg-green-500 border-green-500' : 'bg-red-500 border-red-500')
+          ? c.check
           : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}>
         {checked && <Check size={18} className="text-white" strokeWidth={3} />}
       </div>
@@ -226,6 +232,21 @@ export default function LogView({ userId }: { userId: string }) {
               <FoodCheckCard key={food.id} food={food}
                 checked={checkedItems.includes(food.id)}
                 onToggle={handleToggle} />
+            ))}
+          </div>
+
+          <h2 className="text-xl font-bold text-teal-800 dark:text-teal-500 mb-3">
+            ☕ 건강 음료
+            <span className="ml-2 text-base font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1 rounded-full">
+              {beverageFoods.filter(f => checkedItems.includes(f.id)).length}/{beverageFoods.length}
+            </span>
+          </h2>
+          <p className="text-sm text-teal-600 dark:text-teal-400 mb-2 -mt-1">하루 중 아무 음료든 요구량 충족 시 1일 달성</p>
+          <div className="space-y-2 mb-6">
+            {beverageFoods.map(food => (
+              <FoodCheckCard key={food.id} food={food}
+                checked={checkedItems.includes(food.id)}
+                onToggle={handleToggle} colorType="beverage" />
             ))}
           </div>
 
