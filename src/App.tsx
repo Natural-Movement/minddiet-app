@@ -25,12 +25,15 @@ export default function App() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]')
     if (isDark) {
       document.documentElement.classList.add('dark')
       localStorage.theme = 'dark'
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#1f2937') // gray-800
     } else {
       document.documentElement.classList.remove('dark')
       localStorage.theme = 'light'
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#ffffff')
     }
   }, [isDark])
 

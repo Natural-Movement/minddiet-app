@@ -12,9 +12,11 @@
 
 /* 전체 페이지 기본 스타일 */
 @layer base {
+  html {
+    @apply bg-gray-50 dark:bg-gray-900;
+  }
+
   body {
     @apply bg-gray-50 text-gray-900 border-gray-200;
   }
-
-  /* .dark body는 더이상 필요하지 않으므로 삭제합니다. (tailwind 클래스에 의해 자체 처리) */
 }
