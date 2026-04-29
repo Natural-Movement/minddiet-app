@@ -25,15 +25,15 @@ export default function App() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const themeColorMeta = document.querySelector('meta[name="theme-color"]')
+    const themeColorMeta = document.getElementById('theme-color-meta')
     if (isDark) {
       document.documentElement.classList.add('dark')
       localStorage.theme = 'dark'
-      if (themeColorMeta) themeColorMeta.setAttribute('content', '#1f2937') // gray-800
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#111827') // gray-900으로 맞춰서 완벽한 다크
     } else {
       document.documentElement.classList.remove('dark')
       localStorage.theme = 'light'
-      if (themeColorMeta) themeColorMeta.setAttribute('content', '#ffffff')
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#f9fafb') // gray-50으로 맞춰서 완벽한 라이트
     }
   }, [isDark])
 
