@@ -2,7 +2,7 @@
 // 앱을 오프라인에서도 일부 사용 가능하게 해주고,
 // "홈 화면에 추가" 기능이 작동하게 해주는 파일
 
-const CACHE_NAME = 'mind-diet-v1'
+const CACHE_NAME = 'mind-diet-v2'
 
 // 앱 설치 시 기본 파일들을 캐시에 저장
 self.addEventListener('install', (event) => {
