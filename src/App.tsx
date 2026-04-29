@@ -28,12 +28,16 @@ export default function App() {
     const themeColorMeta = document.getElementById('theme-color-meta')
     if (isDark) {
       document.documentElement.classList.add('dark')
+      document.documentElement.style.backgroundColor = '#111827' // 강제 주입!
+      document.body.style.backgroundColor = '#111827'
       localStorage.theme = 'dark'
-      if (themeColorMeta) themeColorMeta.setAttribute('content', '#111827') // gray-900으로 맞춰서 완벽한 다크
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#111827')
     } else {
       document.documentElement.classList.remove('dark')
+      document.documentElement.style.backgroundColor = '#f9fafb' // 강제 주입!
+      document.body.style.backgroundColor = '#f9fafb'
       localStorage.theme = 'light'
-      if (themeColorMeta) themeColorMeta.setAttribute('content', '#f9fafb') // gray-50으로 맞춰서 완벽한 라이트
+      if (themeColorMeta) themeColorMeta.setAttribute('content', '#f9fafb')
     }
   }, [isDark])
 

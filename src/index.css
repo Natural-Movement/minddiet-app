@@ -12,16 +12,21 @@
 
 /* 전체 페이지 기본 스타일 */
 @layer base {
-  html {
-    @apply bg-gray-50 dark:bg-gray-900;
-  }
-
   body {
-    @apply bg-gray-50 text-gray-900 border-gray-200;
+    @apply text-gray-900 border-gray-200;
     /* iOS safe area: 상태바/노치 영역만큼 패딩 */
     padding-top: env(safe-area-inset-top);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* Tailwind의 dark 클래스 상속 문제 우회: 직접 하드코딩 */
+html, body, #root {
+  background-color: #f9fafb !important; /* 기본 라이트: gray-50 */
+}
+
+html.dark, html.dark body, html.dark #root {
+  background-color: #111827 !important; /* 다크 모드: gray-900 */
 }
