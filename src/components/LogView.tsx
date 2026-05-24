@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { goodFoods, badFoods, beverageFoods, FoodItem, BeverageItem } from '../data/foodItems'
-import { Sun, CloudSun, Moon, Cookie, Check, Save, Loader2 } from 'lucide-react'
+import { fetchSchoolMeal } from '../lib/schoolMeal'
+import { analyzeMealMenu, MealAnalysis } from '../lib/mealAnalyzer'
+import { Sun, CloudSun, Moon, Cookie, Check, Save, Loader2, Sparkles, Wand2 } from 'lucide-react'
 import Toast from './Toast'
 
 const meals = [
@@ -73,6 +75,9 @@ export default function LogView({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null)
   const [hasExisting, setHasExisting] = useState(false)
+  const [mealAnalysis, setMealAnalysis] = useState<MealAnalysis | null>(null)
+  const [mealAnalysisMessage, setMealAnalysisMessage] = useState('')
+  const [analyzingMeal, setAnalyzingMeal] = useState(false)
 
   // 날짜, 끼니, 사용자가 바뀔 때 기록을 불러옴
   useEffect(() => {
@@ -80,6 +85,15 @@ export default function LogView({ userId }: { userId: string }) {
       fetchExisting(mealType, selectedDate)
     }
   }, [mealType, userId, selectedDate])
+
+  useEffect(() => {
+    setMealAnalysis(null)
+    setMealAnalysisMessage('')
+
+    if (mealType === 'lunch') {
+      analyzeLunchMeal(selectedDate, false)
+    }
+  }, [mealType, selectedDate])
 
   const fetchExisting = async (meal: string, targetDate: string) => {
     setLoading(true)
@@ -107,6 +121,54 @@ export default function LogView({ userId }: { userId: string }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const analyzeLunchMeal = async (targetDate = selectedDate, applyImmediately = true) => {
+    if (mealType !== 'lunch') {
+      setToast({ message: '급식 자동 분석은 점심 기록에서 사용할 수 있어요.', type: 'error' })
+      return
+    }
+
+    setAnalyzingMeal(true)
+    setMealAnalysisMessage('')
+
+    try {
+      const meal = await fetchSchoolMeal(targetDate)
+
+      if (!meal.found || !meal.menu) {
+        setMealAnalysis(null)
+        setMealAnalysisMessage(meal.message || '해당 날짜에 등록된 점심 급식정보가 없습니다.')
+        return
+      }
+
+      const analysis = analyzeMealMenu(meal.menu)
+      setMealAnalysis(analysis)
+
+      if (analysis.suggestedIds.length === 0) {
+        setMealAnalysisMessage('급식 메뉴는 찾았지만 MIND 항목과 직접 매칭되는 음식은 없었어요.')
+        return
+      }
+
+      setMealAnalysisMessage(`${analysis.suggestedIds.length}개 항목을 찾았어요.`)
+
+      if (applyImmediately) {
+        setCheckedItems(prev => Array.from(new Set([...prev, ...analysis.suggestedIds])))
+        setToast({ message: `급식 분석 결과 ${analysis.suggestedIds.length}개 항목을 체크했어요.`, type: 'success' })
+      }
+    } catch (err) {
+      console.error(err)
+      setMealAnalysis(null)
+      setMealAnalysisMessage('급식정보를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.')
+    } finally {
+      setAnalyzingMeal(false)
+    }
+  }
+
+  const applyMealAnalysis = () => {
+    if (!mealAnalysis || mealAnalysis.suggestedIds.length === 0) return
+
+    setCheckedItems(prev => Array.from(new Set([...prev, ...mealAnalysis.suggestedIds])))
+    setToast({ message: `급식 분석 결과 ${mealAnalysis.suggestedIds.length}개 항목을 체크했어요.`, type: 'success' })
   }
 
   const handleToggle = (id: string) => {
@@ -209,6 +271,76 @@ export default function LogView({ userId }: { userId: string }) {
           <p className="text-blue-700 dark:text-blue-300 font-semibold text-base">
             📝 이미 기록된 끼니예요. 수정 후 저장하면 업데이트돼요!
           </p>
+        </div>
+      )}
+
+      {mealType === 'lunch' && !loading && (
+        <div className="mb-5 p-4 bg-indigo-50 dark:bg-indigo-950/40 border-2 border-indigo-100 dark:border-indigo-900 rounded-2xl">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+              <Sparkles size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-indigo-950 dark:text-indigo-100">급식 AI 분석</h3>
+                  <p className="text-sm text-indigo-700 dark:text-indigo-300 mt-0.5">
+                    선택한 날짜의 점심 급식을 MIND 항목과 비교해 자동으로 체크합니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => analyzeLunchMeal(selectedDate, true)}
+                  disabled={analyzingMeal}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold disabled:bg-indigo-300 dark:disabled:bg-indigo-900 shrink-0"
+                >
+                  {analyzingMeal ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                  분석
+                </button>
+              </div>
+
+              {mealAnalysisMessage && (
+                <p className="mt-3 text-sm font-semibold text-indigo-800 dark:text-indigo-200">{mealAnalysisMessage}</p>
+              )}
+
+              {mealAnalysis && mealAnalysis.menuItems.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {mealAnalysis.menuItems.map((item) => (
+                      <span key={item} className="px-2.5 py-1 rounded-full bg-white dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-200 border border-indigo-100 dark:border-indigo-900">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+
+                  {mealAnalysis.matches.length > 0 && (
+                    <>
+                      <div className="grid gap-2">
+                        {mealAnalysis.matches.map((match) => (
+                          <div key={match.foodId} className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-indigo-100 dark:border-indigo-900">
+                            <p className="font-bold text-gray-900 dark:text-gray-100">
+                              <span className="mr-1">{match.emoji}</span>
+                              {match.label}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              근거: {match.matchedItems.join(', ')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={applyMealAnalysis}
+                        className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold active:scale-[0.98] transition-transform"
+                      >
+                        분석 결과 적용하기
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
