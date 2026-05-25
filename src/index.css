@@ -1,20 +1,18 @@
-/* Tailwind CSS v4를 불러오는 한 줄 */
-/* 이 한 줄이 있어야 Tailwind의 모든 스타일을 사용할 수 있어요 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ===== 기본 설정 ===== */
 
-/* 모바일에서 터치할 때 파란 하이라이트 없애기 */
 * {
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
 }
 
-/* 전체 페이지 기본 스타일 */
 @layer base {
   body {
-    @apply text-gray-900 border-gray-200;
-    /* iOS safe area: 상태바/노치 영역만큼 패딩 */
+    @apply text-gray-900 border-gray-200 antialiased;
+    font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Noto Sans KR', sans-serif;
     padding-top: env(safe-area-inset-top);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
@@ -25,8 +23,62 @@
 /* Tailwind의 dark 클래스 상속 문제 우회: 직접 하드코딩 */
 html, body, #root {
   background-color: #f9fafb !important; /* 기본 라이트: gray-50 */
+  min-height: 100vh;
 }
 
 html.dark, html.dark body, html.dark #root {
-  background-color: #111827 !important; /* 다크 모드: gray-900 */
+  background-color: #0b0f19 !important; /* 더 짙은 밤하늘색 다크 모드로 고급스럽게 변경 */
+}
+
+/* 프리미엄 글래스모피즘 효과 */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.dark .glass-panel {
+  background: rgba(17, 24, 39, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 스무스 카드 섀도우 */
+.premium-card {
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.03), 0 1px 3px -1px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .premium-card {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3), 0 1px 3px -1px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.premium-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.06), 0 1px 3px -1px rgba(0, 0, 0, 0.02);
+}
+
+.dark .premium-card:hover {
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 1px 3px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* 부드러운 스케일 피드백 */
+.active-press:active {
+  transform: scale(0.97);
+}
+
+/* 다크모드 하단 네비게이션 정교화 */
+.nav-blur {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.dark .nav-blur {
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
