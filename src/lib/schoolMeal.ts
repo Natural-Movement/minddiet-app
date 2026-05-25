@@ -1,3 +1,5 @@
+import { withTimeout } from './requestTimeout'
+
 const MEAL_API_URL = 'https://open.neis.go.kr/hub/mealServiceDietInfo'
 const SCHOOL_API_URL = 'https://open.neis.go.kr/hub/schoolInfo'
 
@@ -70,7 +72,7 @@ export async function fetchSchoolMeal(dateString: string): Promise<SchoolMeal> {
   url.searchParams.set('SD_SCHUL_CODE', schoolCode)
   url.searchParams.set('MLSV_YMD', toApiDate(dateString))
 
-  const response = await fetch(url.toString())
+  const response = await withTimeout(fetch(url.toString()), '급식정보 불러오기')
 
   if (!response.ok) {
     throw new Error('급식정보 서버에 연결하지 못했습니다.')
@@ -89,7 +91,7 @@ export async function searchSchool(schoolName: string): Promise<SchoolInfo[]> {
   url.searchParams.set('pSize', '20')
   url.searchParams.set('SCHUL_NM', schoolName)
 
-  const response = await fetch(url.toString())
+  const response = await withTimeout(fetch(url.toString()), '학교 검색')
   if (!response.ok) {
     throw new Error('학교 정보를 검색하는 도중 서버 오류가 발생했습니다.')
   }

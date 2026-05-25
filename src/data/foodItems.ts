@@ -3,7 +3,7 @@
 
 export interface ScoringCriteria {
   zero: number;
-  half: [number, number];
+  half?: [number, number];
   full: number;
 }
 
@@ -88,7 +88,7 @@ export const goodFoods: FoodItem[] = [
     id: 'fish', label: '생선', emoji: '🐟',
     example: '연어, 고등어, 참치',
     weeklyTarget: 1,
-    scoring: { zero: 0, half: [0, 0], full: 1 },
+    scoring: { zero: 0, full: 1 },
     // 논문 기준: 거의 안 먹음=0, 1~3회/월=0.5, ≥1회/주=1
     // 주간 앱에서는 간소화: 0회=0, 1회=1
   },
@@ -161,14 +161,14 @@ export function calcItemScore(food: FoodItem, count: number): number {
   // 권장 식품: 많이 먹을수록 좋음
   if (food.weeklyTarget !== undefined) {
     if (count >= s.full) return 1
-    if (count >= s.half[0] && count <= s.half[1]) return 0.5
+    if (s.half && count >= s.half[0] && count <= s.half[1]) return 0.5
     return 0
   }
 
   // 제한 식품: 적게 먹을수록 좋음
   if (food.weeklyLimit !== undefined) {
     if (count <= s.full) return 1
-    if (count >= s.half[0] && count <= s.half[1]) return 0.5
+    if (s.half && count >= s.half[0] && count <= s.half[1]) return 0.5
     return 0
   }
 

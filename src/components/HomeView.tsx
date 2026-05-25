@@ -13,10 +13,11 @@ import {
   FoodItem,
   BeverageItem,
 } from '../data/foodItems'
-import { Loader2, ArrowRight, ChevronDown, Sparkles, Check, Coffee } from 'lucide-react'
+import { ArrowRight, ChevronDown, Sparkles, Coffee } from 'lucide-react'
 import ReminderSetting from './ReminderSetting'
 import WeeklyScoreCard from './WeeklyScoreCard'
-import { getLocalCache, setLocalCache, isSameDay } from '../lib/offlineSync'
+import { getEmptyMealMarkers, getLocalCache, setLocalCache, isSameDay } from '../lib/offlineSync'
+import { withTimeout } from '../lib/requestTimeout'
 
 // 최근 7일 날짜 배열
 function getLast7Days() {
@@ -48,9 +49,10 @@ interface FoodStatusProps {
   count: number
   dailyRecord: number[] // 7일 각 날의 섭취 횟수
   colorType?: 'good' | 'bad' | 'beverage'
+  scoreEnabled?: boolean
 }
 
-function FoodStatus({ food, count, dailyRecord, colorType }: FoodStatusProps) {
+function FoodStatus({ food, count, dailyRecord, colorType, scoreEnabled = true }: FoodStatusProps) {
   const [expanded, setExpanded] = useState(false)
   const isBeverage = colorType === 'beverage'
   const isGood = isBeverage || (food as FoodItem).weeklyTarget !== undefined
@@ -60,11 +62,12 @@ function FoodStatus({ food, count, dailyRecord, colorType }: FoodStatusProps) {
     ? (food as FoodItem).weeklyTarget
     : (food as FoodItem).weeklyLimit
 
-  const score = isBeverage ? null : calcItemScore(food as FoodItem, count)
+  const score = isBeverage || !scoreEnabled ? null : calcItemScore(food as FoodItem, count)
   const days = getLast7Days()
 
   const getBarColor = () => {
     if (isBeverage) return 'bg-teal-500'
+    if (!scoreEnabled) return 'bg-gray-300 dark:bg-gray-700'
     if (score === 1) return 'bg-green-500'
     if (score === 0.5) return 'bg-amber-400'
     return isGood ? 'bg-red-400' : 'bg-red-500'
@@ -72,6 +75,7 @@ function FoodStatus({ food, count, dailyRecord, colorType }: FoodStatusProps) {
 
   const getScoreBadge = () => {
     if (isBeverage) return null
+    if (!scoreEnabled) return { text: '-점', bg: 'bg-gray-100 text-gray-400 dark:bg-gray-850 dark:text-gray-500' }
     if (score === 1)
       return { text: '1.0점', bg: 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400' }
     if (score === 0.5)
@@ -82,6 +86,8 @@ function FoodStatus({ food, count, dailyRecord, colorType }: FoodStatusProps) {
   const badge = getScoreBadge()
 
   const barPercent = isBeverage
+    ? 0
+    : !scoreEnabled
     ? 0
     : isGood
     ? Math.min((count / (target || 1)) * 100, 100)
@@ -191,7 +197,7 @@ interface HomeViewProps {
 export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [dailyData, setDailyData] = useState<Record<string, number[]>>({}) // food_id -> [day0..day6 횟수]
-  const [loading, setLoading] = useState(true)
+  const [weeklyActivityCount, setWeeklyActivityCount] = useState(0)
 
   useEffect(() => {
     if (userId) {
@@ -200,8 +206,6 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
   }, [userId])
 
   const fetchWeekData = async () => {
-    setLoading(true)
-
     const days = getLast7Days()
     const weekAgo = days[0]
 
@@ -211,16 +215,18 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
 
     // 2단계: 네트워크 온라인 상태일 때 Supabase에서 갱신
     if (!supabase || !navigator.onLine) {
-      setLoading(false)
       return
     }
 
     try {
-      const { data, error } = await supabase
-        .from('mind_logs')
-        .select('food_id, created_at')
-        .eq('user_id', userId)
-        .gte('created_at', weekAgo.toISOString())
+      const { data, error } = await withTimeout(
+        supabase
+          .from('mind_logs')
+          .select('food_id, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', weekAgo.toISOString()),
+        '주간 데이터 불러오기',
+      )
 
       if (!error && data) {
         setLocalCache(userId, data)
@@ -228,8 +234,6 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
       }
     } catch (err) {
       console.error('Failed to sync data from server, using local cache', err)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -252,22 +256,32 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
       daily[f.id] = Array(7).fill(0)
     })
 
-    logs.forEach((row: any) => {
-      if (result[row.food_id] !== undefined) {
-        result[row.food_id]++
-      }
+    let matchedLogCount = 0
 
-      // 날짜별 섭취 횟수 가산
+    logs.forEach((row: any) => {
       const rowDate = new Date(row.created_at)
-      daysList.forEach((day, idx) => {
+
+      daysList.some((day, idx) => {
         if (isSameDay(rowDate, day) && daily[row.food_id]) {
+          if (result[row.food_id] !== undefined) {
+            result[row.food_id]++
+            matchedLogCount++
+          }
           daily[row.food_id][idx]++
+          return true
         }
+
+        return false
       })
     })
 
+    const emptyMarkerCount = getEmptyMealMarkers(userId).filter((marker) =>
+      daysList.some((day) => isSameDay(marker.date, day)),
+    ).length
+
     setCounts(result)
     setDailyData(daily)
+    setWeeklyActivityCount(matchedLogCount + emptyMarkerCount)
   }
 
   // 음료 누적 및 계산 정합성 맞추기
@@ -286,6 +300,7 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
   }).length
 
   const beverageScore = calcBeverageScore(beverageDailyCounts)
+  const hasWeeklyActivity = weeklyActivityCount > 0
 
   const weeklyScore =
     allFoods.reduce((total, food) => {
@@ -298,7 +313,7 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
       <ReminderSetting />
 
       {/* 주간 MIND 총점 카드 */}
-      <WeeklyScoreCard score={weeklyScore} />
+      <WeeklyScoreCard score={hasWeeklyActivity ? weeklyScore : null} />
 
       {/* 권장 식품 현황 */}
       <div>
@@ -314,6 +329,7 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
               count={counts[food.id] || 0}
               dailyRecord={dailyData[food.id] || Array(7).fill(0)}
               colorType="good"
+              scoreEnabled={hasWeeklyActivity}
             />
           ))}
         </div>
@@ -332,14 +348,16 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
           </div>
           <span
             className={`text-sm font-extrabold px-3 py-1 rounded-full ${
-              beverageScore === 1
+              !hasWeeklyActivity
+                ? 'bg-gray-100 text-gray-400 dark:bg-gray-850 dark:text-gray-500'
+                : beverageScore === 1
                 ? 'bg-green-150 text-green-700 dark:bg-green-950/40 dark:text-green-400'
                 : beverageScore === 0.5
                 ? 'bg-amber-150 text-amber-700 dark:bg-amber-950/40 dark:text-amber-450'
                 : 'bg-red-150 text-red-700 dark:bg-red-950/40 dark:text-red-450'
             }`}
           >
-            {beverageScore}점
+            {hasWeeklyActivity ? beverageScore : '-'}점
           </span>
         </div>
         <div className="space-y-3">
@@ -369,6 +387,7 @@ export default function HomeView({ onGoToLog, userId }: HomeViewProps) {
               count={counts[food.id] || 0}
               dailyRecord={dailyData[food.id] || Array(7).fill(0)}
               colorType="bad"
+              scoreEnabled={hasWeeklyActivity}
             />
           ))}
         </div>

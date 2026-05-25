@@ -20,12 +20,12 @@ export default function ReminderSetting() {
     return saved ? JSON.parse(saved) : DEFAULT_TIMES
   })
   const [open, setOpen] = useState(false)
-  const timersRef = useRef<NodeJS.Timeout[]>([])
+  const [notice, setNotice] = useState('')
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   // 알림 권한 요청 + 타이머 설정
   useEffect(() => {
-    if (enabled) {
-      requestPermission()
+    if (enabled && notificationGranted()) {
       scheduleAll()
     } else {
       clearAll()
@@ -33,10 +33,24 @@ export default function ReminderSetting() {
     return () => clearAll()
   }, [enabled, times])
 
+  const notificationGranted = () => 'Notification' in window && Notification.permission === 'granted'
+
   const requestPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      await Notification.requestPermission()
+    if (!('Notification' in window)) {
+      setNotice('이 브라우저에서는 알림을 지원하지 않습니다.')
+      return false
     }
+
+    const permission =
+      Notification.permission === 'default' ? await Notification.requestPermission() : Notification.permission
+
+    if (permission !== 'granted') {
+      setNotice('알림 권한이 허용되지 않아 식사 알림을 켤 수 없습니다.')
+      return false
+    }
+
+    setNotice('')
+    return true
   }
 
   const clearAll = () => {
@@ -46,7 +60,7 @@ export default function ReminderSetting() {
 
   const scheduleAll = () => {
     clearAll()
-    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    if (!notificationGranted()) return
 
     const now = new Date()
     Object.entries(times as Record<string, string>).forEach(([meal, timeStr]) => {
@@ -58,11 +72,7 @@ export default function ReminderSetting() {
       if (diff < 0) diff += 24 * 60 * 60 * 1000
 
       const id = setTimeout(() => {
-        new Notification('🧠 MIND Diet 알림', {
-          body: `${MEAL_LABELS[meal]} 식사를 기록할 시간이에요!`,
-          icon: '/icon.svg',
-          tag: meal,
-        })
+        showReminder(meal)
         // 다음날 같은 시간에 다시 알림
         const nextId = setTimeout(() => scheduleAll(), 1000)
         timersRef.current.push(nextId)
@@ -72,11 +82,40 @@ export default function ReminderSetting() {
     })
   }
 
-  const toggleEnabled = () => {
+  const showReminder = async (meal: string) => {
+    const title = '🧠 MIND Diet 알림'
+    const options = {
+      body: `${MEAL_LABELS[meal]} 식사를 기록할 시간이에요!`,
+      icon: '/icon.svg',
+      tag: `mind-diet-${meal}`,
+    }
+
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification(title, options)
+        return
+      }
+    } catch (err) {
+      console.error('Service worker notification failed', err)
+    }
+
+    new Notification(title, options)
+  }
+
+  const toggleEnabled = async () => {
     const next = !enabled
+    if (next) {
+      const granted = await requestPermission()
+      if (!granted) {
+        setEnabled(false)
+        localStorage.setItem('reminder_enabled', 'false')
+        return
+      }
+    }
+
     setEnabled(next)
     localStorage.setItem('reminder_enabled', String(next))
-    if (next) requestPermission()
   }
 
   const updateTime = (meal: string, value: string) => {
@@ -100,15 +139,22 @@ export default function ReminderSetting() {
       </div>
 
       {open && (
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex gap-3">
-          {Object.entries(MEAL_LABELS).map(([key, label]) => (
-            <div key={key} className="flex-1 text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>
-              <input type="time" value={times[key]}
-                onChange={e => updateTime(key, e.target.value)}
-                className="w-full text-sm text-center border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg py-1 focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 color-scheme-light dark:[color-scheme:dark]" />
-            </div>
-          ))}
+        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex gap-3">
+            {Object.entries(MEAL_LABELS).map(([key, label]) => (
+              <div key={key} className="flex-1 text-center">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+                <input type="time" value={times[key]}
+                  onChange={e => updateTime(key, e.target.value)}
+                  className="w-full text-sm text-center border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg py-1 focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 color-scheme-light dark:[color-scheme:dark]" />
+              </div>
+            ))}
+          </div>
+          {(notice || enabled) && (
+            <p className="mt-2 text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+              {notice || '앱이 브라우저에서 실행 중일 때 정해진 시간에 알림을 보냅니다.'}
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -3,9 +3,21 @@ import { supabase } from '../lib/supabase.js'
 import { goodFoods, badFoods, beverageFoods, FoodItem, BeverageItem } from '../data/foodItems'
 import { fetchSchoolMeal, SchoolInfo } from '../lib/schoolMeal'
 import { analyzeMealMenu, MealAnalysis } from '../lib/mealAnalyzer'
-import { Sun, CloudSun, Moon, Cookie, Check, Save, Loader2, Sparkles, Wand2, School } from 'lucide-react'
+import { Sun, CloudSun, Moon, Cookie, Check, Save, Loader2, Wand2, School } from 'lucide-react'
 import Toast from './Toast'
-import { getLocalCache, saveLogOffline, isSameDay, getOfflineQueueCount, syncOfflineActions } from '../lib/offlineSync'
+import {
+  clearEmptyMeal,
+  getLocalCache,
+  hasEmptyMealMarker,
+  saveLogOffline,
+  setLocalCache,
+  isSameDay,
+  getOfflineQueueCount,
+  syncOfflineActions,
+  markEmptyMeal,
+} from '../lib/offlineSync'
+import { dateInputAtCurrentTime, formatDateInput, getDateInputRange } from '../lib/dateUtils'
+import { withTimeout } from '../lib/requestTimeout'
 
 const meals = [
   { key: 'breakfast', label: '아침', icon: Sun },
@@ -24,14 +36,6 @@ function getAutoMeal() {
   if (time >= 1101 && time <= 1400) return 'lunch'
   if (time >= 1701 && time <= 2000) return 'dinner'
   return 'snack'
-}
-
-// 오늘 날짜의 시작~끝 시간 (선택된 날짜 기준)
-function getDayRange(dateString: string) {
-  const d = new Date(dateString)
-  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
-  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59)
-  return { start: start.toISOString(), end: end.toISOString() }
 }
 
 function FoodCheckCard({
@@ -94,7 +98,7 @@ function FoodCheckCard({
 }
 
 export default function LogView({ userId }: { userId: string }) {
-  const yyyymmdd = new Date().toISOString().split('T')[0]
+  const yyyymmdd = formatDateInput()
 
   const [selectedDate, setSelectedDate] = useState(yyyymmdd)
   const [mealType, setMealType] = useState(getAutoMeal())
@@ -143,11 +147,11 @@ export default function LogView({ userId }: { userId: string }) {
     const matchedCached = cachedLogs.filter(
       (log) => log.meal_type === meal && isSameDay(log.created_at, targetDate)
     )
+    const emptyMarked = hasEmptyMealMarker(userId, targetDate, meal)
 
-    if (matchedCached.length > 0) {
+    if (matchedCached.length > 0 || emptyMarked) {
       setCheckedItems(matchedCached.map((row) => row.food_id))
       setHasExisting(true)
-      setLoading(false)
       // 온라인이어도 캐시 우선으로 바로 보여주고 백그라운드에서 굳이 스피너를 돌리지 않습니다.
       // 원격 서버 갱신도 시도하여 조용히 싱크를 맞춰줍니다.
     } else {
@@ -155,39 +159,41 @@ export default function LogView({ userId }: { userId: string }) {
       setHasExisting(false)
     }
 
+    setLoading(false)
+
     if (!supabase || !navigator.onLine) {
-      setLoading(false)
       return
     }
 
     try {
-      const { start, end } = getDayRange(targetDate)
-      const { data, error } = await supabase
-        .from('mind_logs')
-        .select('food_id')
-        .eq('user_id', userId)
-        .eq('meal_type', meal)
-        .gte('created_at', start)
-        .lte('created_at', end)
+      const { start, end } = getDateInputRange(targetDate)
+      const { data, error } = await withTimeout(
+        supabase
+          .from('mind_logs')
+          .select('food_id')
+          .eq('user_id', userId)
+          .eq('meal_type', meal)
+          .gte('created_at', start)
+          .lte('created_at', end),
+        '기록 불러오기',
+      )
 
       if (!error && data) {
         if (data.length > 0) {
           setCheckedItems(data.map((row) => row.food_id))
           setHasExisting(true)
+          clearEmptyMeal(userId, targetDate, meal)
 
           // 로컬 캐시 정합성 갱신
           const todayLogs = cachedLogs.filter(
             (log) => !(log.meal_type === meal && isSameDay(log.created_at, targetDate))
           )
           const fetchedRows = data.map((row) => {
-            const today = new Date()
-            const stDate = new Date(targetDate)
-            stDate.setHours(today.getHours(), today.getMinutes(), today.getSeconds())
             return {
               user_id: userId,
               meal_type: meal,
               food_id: row.food_id,
-              created_at: stDate.toISOString(),
+              created_at: dateInputAtCurrentTime(targetDate),
             }
           })
           setLocalCache(userId, [...todayLogs, ...fetchedRows])
@@ -195,13 +201,16 @@ export default function LogView({ userId }: { userId: string }) {
           // 서버에 없는데 로컬엔 있을 수도 있는 정합성 체크:
           // 오프라인 대기열에 들어있는 액션이 있으면 로컬 캐시를 덮어쓰지 말아야 합니다.
           const hasPendingQueue = getOfflineQueueCount() > 0
-          if (!hasPendingQueue && matchedCached.length > 0) {
+          if (!hasPendingQueue && matchedCached.length > 0 && !emptyMarked) {
             setCheckedItems([])
             setHasExisting(false)
             const cleanLogs = cachedLogs.filter(
               (log) => !(log.meal_type === meal && isSameDay(log.created_at, targetDate))
             )
             setLocalCache(userId, cleanLogs)
+          } else if (emptyMarked) {
+            setCheckedItems([])
+            setHasExisting(true)
           }
         }
       }
@@ -214,7 +223,7 @@ export default function LogView({ userId }: { userId: string }) {
 
   const analyzeLunchMeal = async (targetDate = selectedDate, applyImmediately = true) => {
     if (mealType !== 'lunch') {
-      setToast({ message: '급식 자동 분석은 점심 기록에서 사용할 수 있어요.', type: 'error' })
+      setToast({ message: '급식 자동 매칭은 점심 기록에서 사용할 수 있어요.', type: 'error' })
       return
     }
 
@@ -238,11 +247,11 @@ export default function LogView({ userId }: { userId: string }) {
         return
       }
 
-      setMealAnalysisMessage(`${analysis.suggestedIds.length}개 항목을 찾았어요.`)
+      setMealAnalysisMessage(`${analysis.suggestedIds.length}개 항목을 자동 매칭했어요. 저장 전 한 번 확인해 주세요.`)
 
       if (applyImmediately) {
         setCheckedItems((prev) => Array.from(new Set([...prev, ...analysis.suggestedIds])))
-        setToast({ message: `급식 분석 결과 ${analysis.suggestedIds.length}개 항목을 체크했어요.`, type: 'success' })
+        setToast({ message: `급식 매칭 결과 ${analysis.suggestedIds.length}개 항목을 체크했어요.`, type: 'success' })
       }
     } catch (err) {
       console.error(err)
@@ -257,7 +266,7 @@ export default function LogView({ userId }: { userId: string }) {
     if (!mealAnalysis || mealAnalysis.suggestedIds.length === 0) return
 
     setCheckedItems((prev) => Array.from(new Set([...prev, ...mealAnalysis.suggestedIds])))
-    setToast({ message: `급식 분석 결과 ${mealAnalysis.suggestedIds.length}개 항목을 체크했어요.`, type: 'success' })
+    setToast({ message: `급식 매칭 결과 ${mealAnalysis.suggestedIds.length}개 항목을 체크했어요.`, type: 'success' })
   }
 
   const handleToggle = (id: string) => {
@@ -265,11 +274,6 @@ export default function LogView({ userId }: { userId: string }) {
   }
 
   const handleSave = async () => {
-    if (checkedItems.length === 0) {
-      setToast({ message: '최소 1개 이상 체크해주세요!', type: 'error' })
-      return
-    }
-
     setSaving(true)
 
     // 오프라인 상태이거나 Supabase 미세팅 시 로컬 캐시 우선 저장 (Offline-First)
@@ -278,7 +282,10 @@ export default function LogView({ userId }: { userId: string }) {
         saveLogOffline(userId, selectedDate, mealType, checkedItems)
         setHasExisting(true)
         setToast({
-          message: '오프라인 상태입니다. 기기에 안전하게 기록되었으며 인터넷 연결 시 자동 동기화됩니다. 💾',
+          message:
+            checkedItems.length === 0
+              ? '해당하는 MIND 항목 없음으로 기기에 기록했습니다. 인터넷 연결 시 동기화됩니다.'
+              : '오프라인 상태입니다. 기기에 안전하게 기록되었으며 인터넷 연결 시 자동 동기화됩니다. 💾',
           type: 'success',
         })
       } catch (err) {
@@ -291,33 +298,36 @@ export default function LogView({ userId }: { userId: string }) {
     }
 
     try {
-      const { start, end } = getDayRange(selectedDate)
+      const { start, end } = getDateInputRange(selectedDate)
 
       // 1단계: 기존 삭제
-      const { error: deleteError } = await supabase
-        .from('mind_logs')
-        .delete()
-        .eq('user_id', userId)
-        .eq('meal_type', mealType)
-        .gte('created_at', start)
-        .lte('created_at', end)
+      const { error: deleteError } = await withTimeout(
+        supabase
+          .from('mind_logs')
+          .delete()
+          .eq('user_id', userId)
+          .eq('meal_type', mealType)
+          .gte('created_at', start)
+          .lte('created_at', end),
+        '기록 저장',
+      )
 
       if (deleteError) throw deleteError
 
       // 2단계: 신규 추가
-      const now = new Date()
-      const stDate = new Date(selectedDate)
-      stDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds())
+      const createdAt = dateInputAtCurrentTime(selectedDate)
 
       const rows = checkedItems.map((foodId) => ({
         user_id: userId,
         meal_type: mealType,
         food_id: foodId,
-        created_at: stDate.toISOString(),
+        created_at: createdAt,
       }))
 
-      const { error: insertError } = await supabase.from('mind_logs').insert(rows)
-      if (insertError) throw insertError
+      if (rows.length > 0) {
+        const { error: insertError } = await withTimeout(supabase.from('mind_logs').insert(rows), '기록 저장')
+        if (insertError) throw insertError
+      }
 
       // 로컬 캐시 갱신
       const cachedLogs = getLocalCache(userId)
@@ -325,12 +335,20 @@ export default function LogView({ userId }: { userId: string }) {
         (log) => !(log.meal_type === mealType && isSameDay(log.created_at, selectedDate))
       )
       setLocalCache(userId, [...filtered, ...rows])
+      if (rows.length === 0) {
+        markEmptyMeal(userId, selectedDate, mealType)
+      } else {
+        clearEmptyMeal(userId, selectedDate, mealType)
+      }
 
       setHasExisting(true)
       setToast({
-        message: hasExisting
-          ? `${checkedItems.length}개 음식으로 업데이트 완료! ✏️`
-          : `${checkedItems.length}개 음식을 기록했어요! 👏`,
+        message:
+          checkedItems.length === 0
+            ? '해당하는 MIND 항목 없음으로 저장했어요.'
+            : hasExisting
+            ? `${checkedItems.length}개 음식으로 업데이트 완료! ✏️`
+            : `${checkedItems.length}개 음식을 기록했어요! 👏`,
         type: 'success',
       })
 
@@ -402,7 +420,7 @@ export default function LogView({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* 급식 AI 연동 카드 */}
+      {/* 급식 자동 매칭 카드 */}
       {mealType === 'lunch' && !loading && (
         <div className="p-4 bg-indigo-50/40 dark:bg-indigo-950/15 border-2 border-indigo-100/50 dark:border-indigo-900/40 rounded-3xl premium-card">
           <div className="flex items-start gap-3">
@@ -412,7 +430,7 @@ export default function LogView({ userId }: { userId: string }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-black text-indigo-950 dark:text-indigo-250">급식 AI 매칭</h3>
+                  <h3 className="text-base font-black text-indigo-950 dark:text-indigo-250">급식 자동 매칭</h3>
                   <p className="text-xs text-indigo-750 dark:text-indigo-400 mt-0.5">
                     {schoolInfo
                       ? `🏫 ${schoolInfo.schoolName} 점심식단 연동`
@@ -426,7 +444,7 @@ export default function LogView({ userId }: { userId: string }) {
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black disabled:bg-indigo-300 dark:disabled:bg-indigo-900 shrink-0"
                 >
                   {analyzingMeal ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                  자동 분석
+                  자동 매칭
                 </button>
               </div>
 
@@ -465,7 +483,7 @@ export default function LogView({ userId }: { userId: string }) {
                               </p>
                             </div>
                             <span className="text-[10px] font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 px-2 py-0.5 rounded-full shrink-0">
-                              체크추천
+                              추천
                             </span>
                           </div>
                         ))}
@@ -475,7 +493,7 @@ export default function LogView({ userId }: { userId: string }) {
                         onClick={applyMealAnalysis}
                         className="w-full py-2.5 rounded-xl bg-indigo-650 hover:bg-indigo-700 text-white text-sm font-bold active-press transition-transform shadow-md shadow-indigo-500/10"
                       >
-                        분석 결과 적용하기
+                        매칭 결과 적용하기
                       </button>
                     </>
                   )}
@@ -561,10 +579,10 @@ export default function LogView({ userId }: { userId: string }) {
           {/* 5. 기록하기 버튼 */}
           <button
             onClick={handleSave}
-            disabled={saving || checkedItems.length === 0}
+            disabled={saving}
             className={`w-full flex items-center justify-center gap-3 py-4.5 px-6 rounded-3xl text-xl font-bold text-white transition-all border active-press
               ${
-                saving || checkedItems.length === 0
+                saving
                   ? 'bg-gray-300 dark:bg-gray-800 border-gray-300 dark:border-gray-800 text-gray-500 dark:text-gray-600 cursor-not-allowed'
                   : hasExisting
                   ? 'bg-amber-500 hover:bg-amber-600 border-amber-600 shadow-md shadow-amber-500/10'
@@ -580,7 +598,13 @@ export default function LogView({ userId }: { userId: string }) {
               <>
                 <Save size={24} strokeWidth={2.2} />
                 <span>
-                  {hasExisting ? `기록 업데이트 (${checkedItems.length}개)` : `식단 기록하기 (${checkedItems.length}개)`}
+                  {checkedItems.length === 0
+                    ? hasExisting
+                      ? '해당 항목 없음으로 업데이트'
+                      : '해당 항목 없음으로 기록'
+                    : hasExisting
+                    ? `기록 업데이트 (${checkedItems.length}개)`
+                    : `식단 기록하기 (${checkedItems.length}개)`}
                 </span>
               </>
             )}

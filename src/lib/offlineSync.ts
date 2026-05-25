@@ -2,6 +2,8 @@
 // Supabase와의 연결이 불안정할 때 로컬에 먼저 저장하고, 연결이 복구되면 동기화합니다.
 
 import { supabase } from './supabase'
+import { dateInputAtCurrentTime, getDateInputRange, isSameLocalDay } from './dateUtils'
+import { withTimeout } from './requestTimeout'
 
 export interface LogRow {
   user_id: string
@@ -20,6 +22,7 @@ export interface OfflineAction {
 
 const CACHE_PREFIX = 'mind_logs_cache_'
 const QUEUE_KEY = 'mind_offline_queue'
+const EMPTY_MEAL_KEY = 'mind_empty_meals'
 
 // 1. 로컬 캐시 가져오기
 export function getLocalCache(userId: string): LogRow[] {
@@ -34,22 +37,61 @@ export function setLocalCache(userId: string, logs: LogRow[]): void {
 
 // 3. 날짜 비교 함수
 export function isSameDay(date1: Date | string, date2: Date | string): boolean {
-  const d1 = new Date(date1)
-  const d2 = new Date(date2)
-  return (
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate()
+  return isSameLocalDay(date1, date2)
+}
+
+export interface EmptyMealMarker {
+  user_id: string
+  date: string
+  meal_type: string
+  updated_at: string
+}
+
+export function getEmptyMealMarkers(userId: string): EmptyMealMarker[] {
+  const markers: EmptyMealMarker[] = JSON.parse(localStorage.getItem(EMPTY_MEAL_KEY) || '[]')
+  return markers.filter((marker) => marker.user_id === userId)
+}
+
+export function hasEmptyMealMarker(userId: string, date: string, mealType: string): boolean {
+  return getEmptyMealMarkers(userId).some(
+    (marker) => marker.meal_type === mealType && isSameDay(marker.date, date),
   )
+}
+
+export function markEmptyMeal(userId: string, date: string, mealType: string): void {
+  const markers: EmptyMealMarker[] = JSON.parse(localStorage.getItem(EMPTY_MEAL_KEY) || '[]')
+  const filtered = markers.filter(
+    (marker) => !(marker.user_id === userId && marker.meal_type === mealType && isSameDay(marker.date, date)),
+  )
+
+  localStorage.setItem(
+    EMPTY_MEAL_KEY,
+    JSON.stringify([
+      ...filtered,
+      {
+        user_id: userId,
+        date,
+        meal_type: mealType,
+        updated_at: new Date().toISOString(),
+      },
+    ]),
+  )
+}
+
+export function clearEmptyMeal(userId: string, date: string, mealType: string): void {
+  const markers: EmptyMealMarker[] = JSON.parse(localStorage.getItem(EMPTY_MEAL_KEY) || '[]')
+  const filtered = markers.filter(
+    (marker) => !(marker.user_id === userId && marker.meal_type === mealType && isSameDay(marker.date, date)),
+  )
+
+  localStorage.setItem(EMPTY_MEAL_KEY, JSON.stringify(filtered))
 }
 
 // 4. 오프라인으로 로그 저장 (로컬 캐시 즉시 업데이트 + 대기열 추가)
 export function saveLogOffline(userId: string, date: string, mealType: string, checkedItems: string[]): void {
   // 4.1 로컬 캐시 업데이트
   const currentLogs = getLocalCache(userId)
-  const today = new Date()
-  const stDate = new Date(date)
-  stDate.setHours(today.getHours(), today.getMinutes(), today.getSeconds())
+  const createdAt = dateInputAtCurrentTime(date)
 
   // 기존 날짜 & 끼니 기록 필터링 아웃 (삭제 효과)
   const filteredLogs = currentLogs.filter(
@@ -61,11 +103,17 @@ export function saveLogOffline(userId: string, date: string, mealType: string, c
     user_id: userId,
     meal_type: mealType,
     food_id: foodId,
-    created_at: stDate.toISOString(),
+    created_at: createdAt,
   }))
 
   const updatedLogs = [...filteredLogs, ...newRows]
   setLocalCache(userId, updatedLogs)
+
+  if (checkedItems.length === 0) {
+    markEmptyMeal(userId, date, mealType)
+  } else {
+    clearEmptyMeal(userId, date, mealType)
+  }
 
   // 4.2 오프라인 큐에 액션 적재
   const queue: OfflineAction[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]')
@@ -109,35 +157,37 @@ export async function syncOfflineActions(): Promise<{ success: boolean; syncedCo
   for (const action of queue) {
     try {
       // 7일 범위 하루 설정
-      const d = new Date(action.date)
-      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0).toISOString()
-      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).toISOString()
+      const { start, end } = getDateInputRange(action.date)
 
       // 1단계: 기존 기록 삭제
-      const { error: deleteError } = await supabase
-        .from('mind_logs')
-        .delete()
-        .eq('user_id', action.user_id)
-        .eq('meal_type', action.meal_type)
-        .gte('created_at', start)
-        .lte('created_at', end)
+      const { error: deleteError } = await withTimeout(
+        supabase
+          .from('mind_logs')
+          .delete()
+          .eq('user_id', action.user_id)
+          .eq('meal_type', action.meal_type)
+          .gte('created_at', start)
+          .lte('created_at', end),
+        '오프라인 기록 동기화',
+      )
 
       if (deleteError) throw deleteError
 
       // 2단계: 신규 기록 삽입 (기록이 하나 이상 있을 경우에만)
       if (action.checked_items.length > 0) {
-        const today = new Date()
-        const targetDate = new Date(action.date)
-        targetDate.setHours(today.getHours(), today.getMinutes(), today.getSeconds())
+        const createdAt = dateInputAtCurrentTime(action.date)
 
         const rows = action.checked_items.map((foodId) => ({
           user_id: action.user_id,
           meal_type: action.meal_type,
           food_id: foodId,
-          created_at: targetDate.toISOString(),
+          created_at: createdAt,
         }))
 
-        const { error: insertError } = await supabase.from('mind_logs').insert(rows)
+        const { error: insertError } = await withTimeout(
+          supabase.from('mind_logs').insert(rows),
+          '오프라인 기록 동기화',
+        )
         if (insertError) throw insertError
       }
 

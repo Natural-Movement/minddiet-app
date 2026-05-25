@@ -6,7 +6,8 @@ import { supabase } from '../lib/supabase'
 import { allFoods, beverageFoods, calcItemScore, calcBeverageScore } from '../data/foodItems'
 import { Loader2, TrendingUp, BarChart3, HelpCircle } from 'lucide-react'
 import WeeklyScoreCard from './WeeklyScoreCard'
-import { getLocalCache, setLocalCache, isSameDay } from '../lib/offlineSync'
+import { getEmptyMealMarkers, getLocalCache, setLocalCache, isSameDay } from '../lib/offlineSync'
+import { withTimeout } from '../lib/requestTimeout'
 
 // 최근 7일 날짜 배열 만들기 (오늘 포함)
 function getLast7Days() {
@@ -33,6 +34,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true)
   const [dailyScores, setDailyScores] = useState<any[]>([]) // 7일 각각의 식단 로그 수 {date, totalLogs}
   const [rollingScores, setRollingScores] = useState<number[]>([]) // 7일 각각의 롤링 7일 MIND 점수
+  const [hasWeeklyActivity, setHasWeeklyActivity] = useState(false)
 
   useEffect(() => {
     if (userId) {
@@ -52,19 +54,22 @@ export default function WeeklyReport({ userId }: { userId: string }) {
     // 1단계: 로컬 캐시 즉시 결합
     const cachedLogs = getLocalCache(userId)
     processLogs(cachedLogs, days)
+    setLoading(false)
 
     // 2단계: 네트워크 온라인일 때 Supabase 동기화 및 캐시 업데이트
     if (!supabase || !navigator.onLine) {
-      setLoading(false)
       return
     }
 
     try {
-      const { data, error } = await supabase
-        .from('mind_logs')
-        .select('food_id, created_at')
-        .eq('user_id', userId)
-        .gte('created_at', twelveDaysAgo.toISOString())
+      const { data, error } = await withTimeout(
+        supabase
+          .from('mind_logs')
+          .select('food_id, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', twelveDaysAgo.toISOString()),
+        '리포트 데이터 불러오기',
+      )
 
       if (!error && data) {
         setLocalCache(userId, data)
@@ -78,9 +83,12 @@ export default function WeeklyReport({ userId }: { userId: string }) {
   }
 
   const processLogs = (logs: any[], days: Date[]) => {
+    const emptyMarkers = getEmptyMealMarkers(userId)
+
     // 1. 일별 단순 로그 수 계산 (최근 7일 기준)
     const dailyResult = days.map((day) => {
       const dayLogs = logs.filter((row: any) => isSameDay(new Date(row.created_at), day))
+      const emptyMealCount = emptyMarkers.filter((marker) => isSameDay(marker.date, day)).length
       const counts: Record<string, number> = {}
       allFoods.forEach((f) => {
         counts[f.id] = 0
@@ -97,9 +105,12 @@ export default function WeeklyReport({ userId }: { userId: string }) {
         date: day,
         counts,
         totalLogs: dayLogs.length,
+        emptyMealCount,
+        recordCount: dayLogs.length + emptyMealCount,
       }
     })
     setDailyScores(dailyResult)
+    setHasWeeklyActivity(dailyResult.some((day) => day.recordCount > 0))
 
     // 2. 7일 각각에 대한 "롤링 7일 MIND 점수" 역산
     const rollingScoresResult = days.map((targetDay) => {
@@ -198,7 +209,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
     }, 0) + beverageScore
 
   // 일별 기록 건수 중 최대값 (바 그래프 스케일링용)
-  const maxDailyLogs = Math.max(...dailyScores.map((d) => d.totalLogs), 1)
+  const maxDailyLogs = Math.max(...dailyScores.map((d) => d.recordCount || d.totalLogs), 1)
 
   // SVG 차트 좌표 계산
   // viewBox="0 0 500 160" 기준
@@ -240,7 +251,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
   return (
     <section className="space-y-6">
       {/* 주간 총점 */}
-      <WeeklyScoreCard score={weeklyMindScore} />
+      <WeeklyScoreCard score={hasWeeklyActivity ? weeklyMindScore : null} />
 
       {/* SVG 스코어 트렌드 차트 */}
       <div className="p-5 rounded-3xl bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800/80 premium-card">
@@ -255,8 +266,9 @@ export default function WeeklyReport({ userId }: { userId: string }) {
         </div>
 
         {/* SVG 렌더링 */}
-        <div className="w-full overflow-hidden">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full overflow-visible">
+        {hasWeeklyActivity ? (
+          <div className="w-full overflow-hidden">
+            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full overflow-visible">
             <defs>
               {/* 그라데이션 정의 */}
               <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
@@ -338,8 +350,13 @@ export default function WeeklyReport({ userId }: { userId: string }) {
                 </g>
               )
             })}
-          </svg>
-        </div>
+            </svg>
+          </div>
+        ) : (
+          <div className="py-10 text-center text-sm font-bold text-gray-400 dark:text-gray-500">
+            식단 기록이 쌓이면 점수 추이를 표시합니다.
+          </div>
+        )}
       </div>
 
       {/* 날짜별 기록 현황 */}
@@ -350,9 +367,9 @@ export default function WeeklyReport({ userId }: { userId: string }) {
         </h2>
 
         <div className="space-y-3">
-          {dailyScores.map(({ date, counts, totalLogs }) => {
+          {dailyScores.map(({ date, counts, emptyMealCount, recordCount }) => {
             const isToday = isSameDay(date, new Date())
-            const barWidth = (totalLogs / maxDailyLogs) * 100
+            const barWidth = (recordCount / maxDailyLogs) * 100
 
             // 이 날 먹은 음식 이모지 목록
             const eatenEmojis = [...allFoods, ...beverageFoods].filter((f) => counts[f.id] > 0).map((f) => f.emoji)
@@ -384,14 +401,14 @@ export default function WeeklyReport({ userId }: { userId: string }) {
                       </span>
                     )}
                   </div>
-                  <span className="text-base font-bold text-gray-650 dark:text-gray-400">{totalLogs}건 기록됨</span>
+                  <span className="text-base font-bold text-gray-650 dark:text-gray-400">{recordCount}건 기록됨</span>
                 </div>
 
                 {/* 기록 바 */}
                 <div className="h-2.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mb-2.5">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      totalLogs === 0 ? 'bg-gray-200 dark:bg-gray-700' : 'bg-blue-500 dark:bg-blue-600'
+                      recordCount === 0 ? 'bg-gray-200 dark:bg-gray-700' : 'bg-blue-500 dark:bg-blue-600'
                     }`}
                     style={{ width: `${barWidth}%` }}
                   />
@@ -400,6 +417,8 @@ export default function WeeklyReport({ userId }: { userId: string }) {
                 {/* 먹은 음식 이모지들 */}
                 {eatenEmojis.length > 0 ? (
                   <p className="text-2xl tracking-wide">{eatenEmojis.join(' ')}</p>
+                ) : emptyMealCount > 0 ? (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 font-bold">해당 MIND 항목 없음으로 기록됨</p>
                 ) : (
                   <p className="text-xs text-gray-400 dark:text-gray-500 font-bold">식단 기록이 없습니다.</p>
                 )}
@@ -435,14 +454,16 @@ export default function WeeklyReport({ userId }: { userId: string }) {
                 </span>
                 <span
                   className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
-                    score === 1
+                    !hasWeeklyActivity
+                      ? 'bg-gray-100 text-gray-400 dark:bg-gray-850 dark:text-gray-500'
+                      : score === 1
                       ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400'
                       : score === 0.5
                       ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-450'
                       : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-450'
                   }`}
                 >
-                  {score.toFixed(1).replace('.0', '')}점
+                  {hasWeeklyActivity ? score.toFixed(1).replace('.0', '') : '-'}점
                 </span>
               </div>
             )
@@ -463,14 +484,16 @@ export default function WeeklyReport({ userId }: { userId: string }) {
             </div>
             <span
               className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
-                beverageScore === 1
+                !hasWeeklyActivity
+                  ? 'bg-gray-100 text-gray-400 dark:bg-gray-850 dark:text-gray-500'
+                  : beverageScore === 1
                   ? 'bg-green-150 text-green-700 dark:bg-green-950/40 dark:text-green-400'
                   : beverageScore === 0.5
                   ? 'bg-amber-150 text-amber-700 dark:bg-amber-950/40 dark:text-amber-450'
                   : 'bg-red-150 text-red-700 dark:bg-red-950/40 dark:text-red-450'
               }`}
             >
-              {beverageScore.toFixed(1).replace('.0', '')}점
+              {hasWeeklyActivity ? beverageScore.toFixed(1).replace('.0', '') : '-'}점
             </span>
           </div>
         </div>
