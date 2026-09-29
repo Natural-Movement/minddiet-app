@@ -223,11 +223,16 @@ export default function WeeklyReport({ userId }: { userId: string }) {
   const plotWidth = chartWidth - paddingLeft - paddingRight
   const plotHeight = chartHeight - paddingTop - paddingBottom
 
+  const minScore = 9.5
+  const maxScore = 15
+  const scoreRange = maxScore - minScore
+
   const points = rollingScores.map((score, idx) => {
     const x = paddingLeft + idx * (plotWidth / 6)
-    // 0점일 때 Y는 가장 밑 (chartHeight - paddingBottom)
+    // 9.5점일 때 Y는 가장 밑 (chartHeight - paddingBottom)
     // 15점일 때 Y는 가장 위 (paddingTop)
-    const y = chartHeight - paddingBottom - (score / 15) * plotHeight
+    const normalizedScore = Math.min(maxScore, Math.max(score, minScore))
+    const y = chartHeight - paddingBottom - ((normalizedScore - minScore) / scoreRange) * plotHeight
     return { x, y, score }
   })
 
@@ -278,8 +283,8 @@ export default function WeeklyReport({ userId }: { userId: string }) {
             </defs>
 
             {/* 그리드 수평선 */}
-            {[0, 5, 10, 15].map((gridVal) => {
-              const gridY = chartHeight - paddingBottom - (gridVal / 15) * plotHeight
+            {[9.5, 11, 13, 15].map((gridVal) => {
+              const gridY = chartHeight - paddingBottom - ((gridVal - minScore) / scoreRange) * plotHeight
               return (
                 <g key={gridVal}>
                   <line
@@ -289,7 +294,7 @@ export default function WeeklyReport({ userId }: { userId: string }) {
                     y2={gridY}
                     className="stroke-gray-100 dark:stroke-gray-800/50"
                     strokeWidth={1}
-                    strokeDasharray={gridVal === 0 ? '0' : '4, 4'}
+                    strokeDasharray={gridVal === minScore ? '0' : '4, 4'}
                   />
                   <text
                     x={paddingLeft - 8}
